@@ -72,11 +72,42 @@ function externalLink(label, url) {
   return link;
 }
 
+function commanderRole(card) {
+  if (card?.isToken || !card?.legality?.legal?.includes("commander")) return "";
+  const front = card.faces[0];
+  const [typeLine, subtypeLine = ""] = front.type.split(" — ", 2);
+  const types = typeLine.split(" ");
+  const subtypes = subtypeLine.split(" ");
+  const hasPrintedStats = front.power != null && front.toughness != null;
+  // Grist, the Hunger Tide is a legendary creature outside the battlefield.
+  if (card.oracleId === "0efb0d7e-dea0-4817-a243-15066e9ef333"
+    || front.oracleText?.split("\n").includes(`${front.name} can be your commander.`)
+    || (types.includes("Legendary") && (types.includes("Creature")
+      || (hasPrintedStats && (subtypes.includes("Vehicle") || subtypes.includes("Spacecraft")))))) {
+    return "commander";
+  }
+  if (types.includes("Legendary") && types.includes("Enchantment") && subtypes.includes("Background")) {
+    return "background";
+  }
+  return "";
+}
+
 function rowDetails(group) {
   const details = node("details");
   const summary = node("summary");
   summary.append(node("strong", group.name), node("span", `×${format.format(group.quantity)}`, "tag"));
-  if (group.status !== "matched") summary.append(node("span", states[group.status], "tag"));
+  if (group.status !== "matched") {
+    summary.append(node("span", states[group.status], "tag"));
+  } else {
+    const roles = new Set(group.items.flatMap(item => item.oracleIds.map(id => commanderRole(cards.get(id)))));
+    if (roles.size === 1 && roles.has("commander")) {
+      summary.append(node("span", "Commander", "tag commander-eligibility"));
+    } else if (roles.size === 1 && roles.has("background")) {
+      summary.append(node("span", "Background co-commander", "tag commander-eligibility"));
+    } else if (roles.has("commander") || roles.has("background")) {
+      summary.append(node("span", "Commander eligibility varies", "tag commander-eligibility"));
+    }
+  }
   details.append(summary);
   details.addEventListener("toggle", () => {
     if (!details.open) return;
