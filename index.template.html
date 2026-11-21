@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#101714">
+  <title>Lattice MTG · Card Explorer</title>
+  <meta name="description" content="Search Magic: The Gathering cards, explore Oracle text, or import your collection.">
+  <link rel="stylesheet" href="/styles.css">
+  <script type="module" src="/app.mjs"></script>
+</head>
+<body class="explorer">
+  <header class="sitebar">
+    <div class="wrap brandrow">
+      <a href="/" class="brand" aria-label="Lattice MTG home"><i aria-hidden="true"></i>LATTICE <span>MTG</span></a>
+      <span>Snapshot · {{snapshot}}</span>
+    </div>
+  </header>
+  <main class="wrap explorer-main">
+    <section class="explorer-hero" aria-labelledby="search-heading">
+      <h1 id="search-heading">Find a Magic card<span>.</span></h1>
+      <p>Look up card faces, Oracle text, and format legality.</p>
+      <form id="search" action="/" role="search">
+        <label for="query" class="sr">Search cards</label>
+        <input type="search" id="query" name="q" placeholder="Card name, Oracle ID, or rules text…" autocomplete="off">
+        <button class="primary">Search</button>
+      </form>
+      <div class="controls">
+        <label>Search in <select id="scope"><option value="name">Card name or ID</option><option value="oracle">Oracle text</option></select></label>
+      </div>
+      <noscript><p>Use the <a href="/cards/">text catalog</a> to look up cards without JavaScript.</p></noscript>
+    </section>
+    <section id="start" aria-label="Explore Lattice">
+      <div class="start-actions">
+        <a href="/collection/" class="start-option start-collection">
+          <h2>Import collection</h2>
+          <p>Open your Delver Lens CSV and export your collection as text, JSON, or SQLite.</p>
+        </a>
+        <a href="/cards/" class="start-option">
+          <h2>Browse card catalog</h2>
+          <p>Find cards alphabetically in the text catalog.</p>
+        </a>
+        <a href="/lookup/" class="start-option">
+          <h2>JSON lookup</h2>
+          <p>Get compact card records for tools and AI agents.</p>
+        </a>
+      </div>
+      <dl class="metrics explorer-metrics">
+        <div><dt>Cards</dt><dd>{{cards}}</dd></div>
+        <div><dt>Card faces</dt><dd>{{faces}}</dd></div>
+        <div><dt>Card–set links</dt><dd>{{sets}}</dd></div>
+      </dl>
+    </section>
+    <div class="grid" id="workspace" hidden>
+      <section class="panel" aria-labelledby="results-heading">
+        <header class="panelbar"><h2 id="results-heading">Search results</h2><span id="status" role="status"></span></header>
+        <ul id="results"></ul>
+        <nav id="paging" aria-label="Search result pages" hidden><button id="prev">Previous</button><span id="page"></span><button id="next">Next</button></nav>
+      </section>
+      <section class="panel" id="detail" aria-label="Card details" tabindex="-1" hidden></section>
+    </div>
+    <footer>Card data from <a href="https://scryfall.com/docs/api/bulk-data">Scryfall</a>. Unofficial Magic: The Gathering fan content. Portions © Wizards of the Coast.</footer>
+  </main>
+</body>
+</html>

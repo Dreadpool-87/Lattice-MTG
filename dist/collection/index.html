@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#101714">
+  <title>Your collection · Lattice MTG</title>
+  <meta name="description" content="Import a Magic collection CSV, review the cards, and export them with Oracle data.">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/collection/collection.css">
+  <script type="module" src="/collection/page.mjs"></script>
+</head>
+<body>
+  <header class="sitebar"><div class="wrap brandrow">
+    <a href="/" class="brand"><i aria-hidden="true"></i>LATTICE <span>MTG</span></a>
+    <a href="/">Card Explorer</a>
+  </div></header>
+  <main class="wrap">
+    <section class="intro"><div><h1>Your collection<span>.</span></h1>
+      <p>Import a collection CSV to check card identities, quantities, and Oracle text.</p></div>
+    </section>
+    <section class="panel import-panel" aria-labelledby="import-heading">
+      <div><h2 id="import-heading">Import collection</h2>
+        <p class="hint">Choose a CSV or tab-separated file with Name, Quantity, and an Oracle ID or Scryfall ID column. Your collection stays in this tab until you clear it, replace it, or close the tab.</p>
+      </div>
+      <label for="csv-file" class="sr">Collection CSV</label>
+      <input type="file" id="csv-file">
+      <div class="import-actions">
+        <button type="button" id="retry-import" hidden>Retry import</button>
+        <button type="button" id="clear-collection" hidden>Clear collection</button>
+      </div>
+      <p id="import-status" class="import-status" role="status"></p>
+      <p id="session-status" class="import-status warning" role="status"></p>
+      <noscript><p>Enable JavaScript to import a CSV and export your collection.</p></noscript>
+    </section>
+    <section id="collection" hidden aria-labelledby="collection-heading">
+      <div class="collection-summary">
+        <div><h2 id="collection-heading">Imported cards</h2><p id="summary" class="hint"></p><p id="snapshot" class="hint"></p><p id="printing-summary" class="hint"></p></div>
+        <div class="download-actions">
+          <button type="button" id="text" class="primary">Export text</button>
+          <button type="button" id="json">Export JSON</button>
+          <button type="button" id="sqlite">Export SQLite</button>
+          <p id="export-status" class="hint" role="status"></p>
+        </div>
+      </div>
+      <p id="warning" class="warning" hidden></p>
+      <div class="panel">
+        <div class="panelbar collection-filters">
+          <label class="sr" for="filter">Filter collection by name</label>
+          <input type="search" id="filter" placeholder="Find a card in your collection…">
+          <label class="sr" for="sort-order">Sort collection</label>
+          <select id="sort-order">
+            <option value="">Name A–Z</option><option value="name-desc">Name Z–A</option>
+            <option value="quantity-desc">Quantity high to low</option><option value="quantity-asc">Quantity low to high</option>
+            <option value="mana-asc">Mana value low to high</option><option value="mana-desc">Mana value high to low</option>
+          </select>
+        </div>
+        <details class="collection-filter-panel">
+          <summary id="filter-summary">Filters</summary>
+          <div id="collection-filters">
+            <label>Type
+              <select id="card-type"><option value="">All types</option></select>
+            </label>
+            <label>Card color
+              <select id="card-color">
+                <option value="">All colors</option><option value="W">White</option><option value="U">Blue</option>
+                <option value="B">Black</option><option value="R">Red</option><option value="G">Green</option>
+                <option value="colorless">Colorless</option><option value="multicolor">Multicolor</option>
+              </select>
+            </label>
+            <label>Mana value
+              <select id="mana-value"><option value="">Any mana value</option></select>
+            </label>
+            <label>Set
+              <select id="card-set"><option value="">All sets</option></select>
+            </label>
+            <label>Match status
+              <select id="match-status">
+                <option value="">All statuses</option><option value="matched">Matched</option><option value="review">Needs review</option>
+                <option value="token">Tokens and emblems</option>
+              </select>
+            </label>
+            <label>Printing check
+              <select id="printing-status">
+                <option value="">All printing checks</option><option value="verified">Verified</option><option value="mismatch">Mismatch</option>
+                <option value="unknown">Not in snapshot</option><option value="unavailable">Check unavailable</option>
+                <option value="not_provided">No printing ID</option>
+              </select>
+            </label>
+          </div>
+        </details>
+        <div class="collection-results">
+          <p id="filter-results" class="hint" role="status"></p>
+          <button type="button" id="reset-filters" disabled>Reset filters</button>
+        </div>
+        <div id="cards" class="collection-cards"></div>
+        <nav id="pages" aria-label="Collection pages" hidden>
+          <button type="button" id="previous">Previous</button><span id="page"></span><button type="button" id="next">Next</button>
+        </nav>
+      </div>
+    </section>
+    <footer>Card identities are checked against the Lattice catalog. Rows with missing or conflicting IDs need review.</footer>
+  </main>
+</body>
+</html>

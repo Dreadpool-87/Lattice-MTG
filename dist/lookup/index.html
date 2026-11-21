@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Compact card lookup · Lattice MTG</title><link rel="stylesheet" href="../styles.css"></head>
+<body><main class="wrap static-catalog"><p><a href="../">Lattice MTG</a> · <a href="../cards/">Alphabetical catalog</a></p>
+<h1>Compact card lookup</h1>
+<p>35,836 Oracle IDs from the 2026-11-20 snapshot. Plain JSON, with at most 8 card records per data response.</p>
+<ol>
+<li>Take the full card name. Apply Unicode NFKD, lowercase, and keep only a–z and 0–9. Lightning Bolt becomes <code>lightningbolt</code>. If nothing remains, use <code>other</code> as the full key.</li>
+<li>Fetch its first four characters, or the entire key if shorter, followed by <code>.json</code>. For Lightning Bolt, open <a href="ligh.json"><code>ligh.json</code></a>.</li>
+<li>If the response contains <code>routes</code>, use the full key to find the file. For Lightning Bolt, open <a href="ligh-3.json"><code>ligh-3.json</code></a>. If the first file contains <code>cards</code>, use it directly.</li>
+<li>In every <code>cards</code> response, compare the full card name and keep only exact name matches. Normalization selects a file, and several different names can share that file or key. Check <code>ambiguousNames</code>. When several Oracle IDs match, return them all or ask for the Oracle ID.</li>
+</ol>
+<p><strong>No exact match:</strong> A successful response with no matching route key or no exact card name means no exact match in this snapshot. If a required file could not be retrieved, report the lookup as unverified.</p>
+<p>Each face includes the source Oracle text. A format missing from the status lists is unreported. Snapshot statuses do not capture all printing-level or commander-specific restrictions. <code>catalogManaValue</code> describes the card in the source. <code>catalogFaceManaValue</code> describes the face in the source. Game rules determine the value in a particular zone or state.</p>
+<p><a href="browse/">Browse linked JSON files</a> · <a href="examples.html">HTML examples</a></p>
+<p><a href="integrity/">Small checksum manifests</a> · <a href="manifest.json">Full SHA-256 manifest</a> · <a href="https://scryfall.com/docs/api/bulk-data">Card data source</a></p>
+</main></body></html>
