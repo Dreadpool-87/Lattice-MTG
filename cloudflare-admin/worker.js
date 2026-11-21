@@ -60,7 +60,8 @@ export default {
     if (request.headers.get("Origin") !== url.origin) {
       return new Response("Access denied.", { status: 403 });
     }
-    if (!env.GITHUB_ACTIONS_TOKEN) {
+    const token = env.GITHUB_ACTIONS_TOKEN?.trim();
+    if (!token) {
       return page("The GitHub credential has not been configured.", { status: 503 });
     }
     if (startedHere.pending || Date.now() < startedHere.checkAfter) {
@@ -69,19 +70,23 @@ export default {
 
     startedHere.pending = true;
     const headers = {
-      Authorization: "Bearer " + env.GITHUB_ACTIONS_TOKEN,
+      Authorization: "Bearer " + token,
       Accept: "application/vnd.github+json",
       "X-GitHub-Api-Version": "2026-03-10",
       "User-Agent": "Lattice-MTG-Admin",
     };
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20_000);
+    let stage = "workflow status check";
     try {
       const history = await fetch(workflow + "/runs?branch=main&per_page=30", {
         headers,
-        redirect: "error",
-        signal: AbortSignal.timeout(10000),
+        redirect: "manual",
+        signal: controller.signal,
       });
       if (!history.ok) {
-        return page("GitHub workflow status could not be checked. Check the workflow history.", { status: 502 });
+        console.warn("GitHub workflow status check HTTP status", history.status);
+        return page("GitHub returned HTTP " + history.status + " while checking the workflow status.", { status: 502 });
       }
       const { workflow_runs: runs } = await history.json();
       const active = runs.find(run => run.event !== "pull_request" && run.status !== "completed");
@@ -90,27 +95,33 @@ export default {
         return page("A workflow is already queued or running.", { status: 409, runId });
       }
 
+      stage = "update request";
       startedHere.checkAfter = Date.now() + 30000;
       const response = await fetch(workflow + "/dispatches", {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({ ref: "main", inputs: { refresh_data: true } }),
-        redirect: "error",
-        signal: AbortSignal.timeout(10000),
+        redirect: "manual",
+        signal: controller.signal,
       });
       if (!response.ok) {
-        return page("GitHub did not confirm the update. Check the workflow history before trying again.", { status: 502 });
+        console.warn("GitHub update request HTTP status", response.status);
+        return page("GitHub returned HTTP " + response.status + " while starting the update. Check the workflow history before trying again.", { status: 502 });
       }
-      const result = response.status === 200 ? await response.json() : null;
+      const result = response.status === 200 ? await response.json().catch(() => null) : null;
       const id = result?.workflow_run_id;
       const query = Number.isSafeInteger(id) && id > 0 ? "run=" + id : "submitted=1";
       return new Response(null, {
         status: 303,
         headers: { Location: "/?" + query, "Cache-Control": "no-store" },
       });
-    } catch {
-      return page("GitHub could not be reached or the result is unknown. Check the workflow history before trying again.", { status: 502 });
+    } catch (error) {
+      const reason = controller.signal.aborted ? "timed out" :
+        error instanceof SyntaxError ? "received an invalid response" : "could not complete the request";
+      console.warn("GitHub " + stage, reason);
+      return page("GitHub " + stage + ": " + reason + ". Check the workflow history before trying again.", { status: 502 });
     } finally {
+      clearTimeout(timeout);
       startedHere.pending = false;
     }
   },
