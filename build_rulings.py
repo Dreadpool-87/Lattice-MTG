@@ -4,7 +4,6 @@ from datetime import date
 import gzip
 from itertools import product
 import json
-from pathlib import Path
 import re
 from urllib.request import Request, urlopen
 
@@ -20,7 +19,7 @@ def fetch(url, accept):
         return response.read()
 
 
-def publish(output, metadata, compressed):
+def collect(metadata, compressed):
     if metadata["type"] != "rulings" or len(compressed) != metadata["compressed_size"]:
         raise ValueError("Unexpected Scryfall rulings export")
     snapshot = date.fromisoformat(metadata["updated_at"][:10]).isoformat()
@@ -39,27 +38,31 @@ def publish(output, metadata, compressed):
     if not rulings:
         raise ValueError("No official rulings in Scryfall export")
 
+    notes = {oracle_id: sorted(notes, reverse=True) for oracle_id, notes in sorted(rulings.items())}
+    return {
+        "snapshot": snapshot, "source": BULK_URL,
+        "rulings": sum(map(len, notes.values())), "cards": len(notes), "notes": notes,
+    }
+
+
+def publish(output, cached):
     buckets = defaultdict(dict)
-    count = 0
-    for oracle_id, notes in sorted(rulings.items()):
-        buckets[oracle_id[:2]][oracle_id] = sorted(notes, reverse=True)
-        count += len(notes)
+    for oracle_id, notes in cached["notes"].items():
+        buckets[oracle_id[:2]][oracle_id] = notes
     output.mkdir(parents=True, exist_ok=True)
     for first, second in product("0123456789abcdef", repeat=2):
         prefix = first + second
         (output / f"{prefix}.json").write_text(
             json.dumps(buckets[prefix], ensure_ascii=False, separators=(",", ":")), encoding="utf-8"
         )
-    (output / "meta.json").write_text(
-        json.dumps({"snapshot": snapshot, "source": BULK_URL, "rulings": count, "cards": len(rulings)}),
-        encoding="utf-8",
-    )
-    print(f"Published {count:,} official rulings for {len(rulings):,} Oracle IDs from {snapshot}")
+    meta = {key: value for key, value in cached.items() if key != "notes"}
+    (output / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+    print(f"Published {meta['rulings']:,} official rulings for {meta['cards']:,} Oracle IDs from {meta['snapshot']}")
 
 
-if __name__ == "__main__":
+def download():
     metadata = json.loads(fetch(BULK_URL, "application/json"))
     download_url = metadata["jsonl_download_uri"]
     if not EXPORT_URL.fullmatch(download_url):
         raise ValueError("Unexpected Scryfall rulings download URL")
-    publish(Path("dist/data/rulings"), metadata, fetch(download_url, "application/gzip,*/*;q=0.8"))
+    return collect(metadata, fetch(download_url, "application/gzip,*/*;q=0.8"))

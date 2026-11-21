@@ -239,13 +239,18 @@ def write_lookup_index(output, count, snapshot, source_url, bolt_prefix, bolt_fi
 <body><main class="wrap static-catalog"><p><a href="../">Lattice MTG</a> · <a href="../cards/">Alphabetical catalog</a></p>
 <h1>Compact card lookup</h1>
 <p>{count:,} Oracle IDs from the {date} snapshot. Plain JSON, with at most {LIMIT} card records per data response.</p>
+<p id="site-data-snapshots"></p>
 <ol>
 <li>Take the full card name. Apply Unicode NFKD, lowercase, and keep only a–z and 0–9. Lightning Bolt becomes <code>lightningbolt</code>. If nothing remains, use <code>other</code> as the full key.</li>
 <li>Fetch its first four characters, or the entire key if shorter, followed by <code>.json</code>. For Lightning Bolt, open <a href="{bolt_prefix}"><code>{bolt_prefix}</code></a>.</li>
 <li>If the response contains <code>routes</code>, use the full key to find the file. For Lightning Bolt, open <a href="{bolt_file}"><code>{bolt_file}</code></a>. If the first file contains <code>cards</code>, use it directly.</li>
 <li>In every <code>cards</code> response, compare the full card name and keep only exact name matches. Normalization selects a file, and several different names can share that file or key. Check <code>ambiguousNames</code>. When several Oracle IDs match, return them all or ask for the Oracle ID.</li>
 </ol>
-<p><strong>No exact match:</strong> A successful response with no matching route key or no exact card name means no exact match in this snapshot. If a required file could not be retrieved, report the lookup as unverified.</p>
+<ul>
+<li><strong>No exact match:</strong> A successfully retrieved JSON file has no matching route key or no matching full card name. If the first JSON file could not be retrieved, check the <a href="browse/">linked file index</a>. If the index loads and omits that prefix or file, the snapshot has no match.</li>
+<li><strong>Unverified:</strong> A listed file, a routed file, or the index page needed to check a missing prefix could not be read. A failed request or a 404 alone does not establish absence.</li>
+<li><strong>Tokens and emblems:</strong> Search for these in the <a href="../">Card Explorer</a> or use the <a href="../data/tokens.json.gz">compressed token catalog</a>. They are outside the scope of this compact lookup. For example, the exact name Treasure can match a non-token record here.</li>
+</ul>
 <p>Each face includes the source Oracle text. A format missing from the status lists is unreported. Snapshot statuses do not capture all printing-level or commander-specific restrictions. <code>catalogManaValue</code> describes the card in the source. <code>catalogFaceManaValue</code> describes the face in the source. Game rules determine the value in a particular zone or state.</p>
 <p><a href="browse/">Browse linked JSON files</a> · <a href="examples.html">HTML examples</a></p>
 <p><a href="integrity/">Small checksum manifests</a> · <a href="manifest.json">Full SHA-256 manifest</a> · <a href="{escape(source_url)}">Card data source</a></p>
