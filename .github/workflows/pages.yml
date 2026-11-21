@@ -24,6 +24,8 @@ jobs:
         env:
           PAGES_BASE_PATH: ${{ steps.pages.outputs.base_path }}
         run: python3 prepare_pages.py "$PAGES_BASE_PATH"
+      - name: Build the set index
+        run: python3 build_sets.py
       - name: Build the official rulings index
         run: python3 build_rulings.py
       - name: Upload the static site

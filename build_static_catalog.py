@@ -188,6 +188,7 @@ def build(root):
     overview = f"""<p><a href="../lookup/">Compact JSON lookup</a> is the recommended route for agents looking up a card by name.</p>
 <p>{meta["cards"]:,} card records from the {escape(meta["snapshot"])} snapshot. Every linked card page contains the card text in its HTML response.</p>
 <p>{examples}</p>
+<p><a href="../sets/">Browse by set</a></p>
 <h2>Browse by first letter</h2>
 <nav aria-label="Card name index" class="alphabet">{alphabet}</nav>
 <p>Follow the letter, prefix, and card range. A prefix link jumps to a section on the letter page. Check the exact card name and open every range listed for a shared name.</p>
