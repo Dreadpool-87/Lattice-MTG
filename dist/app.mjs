@@ -8,6 +8,7 @@ const escape = value => String(value).replace(/[&<>"']/g, char => ({"&":"&amp;",
 const nf = new Intl.NumberFormat("en-US");
 const pageSize = 10;
 const shards = new Map();
+const rulingShards = new Map();
 const tokenCards = new Map();
 let catalog, byId = new Map(), matches = [], oracle, selected, card, face, page = 0;
 let searchRequest = 0, cardRequest = 0;
@@ -16,6 +17,37 @@ async function read(url) {
   const response = await fetch(url);
   if (!response.ok) throw new Error("HTTP " + response.status);
   return response.json();
+}
+
+async function showRulings(panel, oracleId) {
+  const output = panel.querySelector("[data-ruling-notes]");
+  const status = panel.querySelector("[role=status]");
+  const prefix = oracleId.slice(0, 2);
+  panel.dataset.loading = "true";
+  status.textContent = "Loading official rulings…";
+  try {
+    if (!rulingShards.has(prefix)) {
+      rulingShards.set(prefix, read(`/data/rulings/${prefix}.json`).catch(error => {
+        rulingShards.delete(prefix);
+        throw error;
+      }));
+    }
+    const notes = (await rulingShards.get(prefix))[oracleId] ?? [];
+    status.textContent = notes.length ? "" : "No official rulings in this snapshot.";
+    for (const [date, comment] of notes) {
+      const entry = document.createElement("li");
+      const time = document.createElement("time");
+      time.dateTime = date;
+      time.textContent = date;
+      entry.append(time, " · ", comment);
+      output.append(entry);
+    }
+    panel.dataset.loaded = "true";
+  } catch {
+    status.textContent = "Could not load rulings. Close and reopen to retry.";
+  } finally {
+    delete panel.dataset.loading;
+  }
 }
 
 function loadCatalog() {
@@ -147,8 +179,22 @@ function renderCard() {
     ${observations.length ? `<details class="block"><summary>Heuristic tags (${observations.length})</summary><p class="hint">Unverified text matches. Check the Oracle text.</p><div class="tags">${tags(observations.map(e=>e.kind+" · "+e.target))}</div></details>` : ""}
     <details class="block"><summary>Set codes (${card.setCodes.length})</summary><div class="tags">${tags(card.setCodes.map(code=>code.toUpperCase()))}</div></details>
     ${card.isToken ? '<p class="hint">Tokens and emblems are tracked separately from deck inventory.</p>' :
-      `<details class="block"><summary>Format legality in this snapshot</summary>${renderLegality(card.snapshotLegality)}<p class="hint">Formats absent from the source status lists are unreported.</p></details>`}</section>
+      `<details class="block"><summary>Format legality in this snapshot</summary>${renderLegality(card.snapshotLegality)}<p class="hint">Formats absent from the source status lists are unreported.</p></details>`}
+    <details class="block" data-rulings>
+      <summary>Official rulings</summary>
+      <p class="hint">Wizards of the Coast, via Scryfall.</p>
+      <p class="hint" role="status"></p>
+      <ul data-ruling-notes></ul>
+    </details>
+    </section>
     <section data-printing-panel aria-label="Printings" aria-live="polite" hidden></section></div>`;
+  const rulings = detail.querySelector("[data-rulings]");
+  const oracleId = card.oracleId;
+  rulings.addEventListener("toggle", () => {
+    if (rulings.open && !rulings.dataset.loaded && !rulings.dataset.loading) {
+      showRulings(rulings, oracleId);
+    }
+  });
 }
 
 async function openCard(id, position=0, {move = false, updateUrl = true} = {}) {
