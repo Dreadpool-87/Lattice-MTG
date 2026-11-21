@@ -104,6 +104,8 @@ async function find({updateUrl = true} = {}) {
   }
 }
 
+const commanderColors = {W: "White", U: "Blue", B: "Black", R: "Red", G: "Green"};
+
 const tags = list => list.map(value=>`<span class="tag">${escape(value)}</span>`).join("");
 
 function renderLegality(snapshot) {
@@ -122,6 +124,10 @@ function renderCard() {
   const mana = f.cost.map(cost=>{const ch=cost.slice(1,-1);return `<span class="${escape(ch)}">${escape(ch)}</span>`;}).join("");
   const links = f.edge.filter(edge=>edge.kind==="curated");
   const observations = f.edge.filter(edge=>edge.kind!=="curated");
+  const colorIdentity = Array.isArray(card.colorIdentity)
+    ? Object.keys(commanderColors).filter(color => card.colorIdentity.includes(color))
+      .map(color => commanderColors[color]).join(", ") || "Colorless"
+    : "";
   const attributes = f.faceManaValue === null ? [] : [`Mana value (face) ${f.faceManaValue}`];
   if (f.power!==null) attributes.push(`${escape(f.power)}/${escape(f.toughness)}`);
   if (f.loyalty!==null) attributes.push(`Loyalty ${escape(f.loyalty)}`);
@@ -133,6 +139,7 @@ function renderCard() {
       <button type="button" data-view="printings" aria-pressed="false">Printings</button>
     </div>
     <section data-card-rules aria-label="Card details">
+    ${colorIdentity ? `<p class="hint"><strong>Commander color identity</strong> · ${colorIdentity}</p>` : ""}
     ${card.faces.length>1 ? `<div class="facebuttons" aria-label="Card faces">${card.faces.map((entry,i)=>`<button data-face="${i}" aria-pressed="${i===face}">${escape(entry.name)}</button>`).join("")}</div>` : ""}
     <article class="face"><div class="facedata"><h3>${escape(f.type)}</h3><div class="mana" aria-label="Mana cost">${mana}</div></div>
     <div class="rules">${f.text.map(line=>`<p>${escape(line)}</p>`).join("")}</div>${f.keywords.length ? `<details><summary>Source labels</summary><div class="tags">${tags(f.keywords)}</div></details>` : ""}<p class="hint">${attributes.join(" · ")}</p></article>
