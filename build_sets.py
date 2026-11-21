@@ -1,9 +1,9 @@
 """Build a static set index from the existing printing snapshot."""
 from collections import defaultdict
+from datetime import datetime, timezone
 from html import escape
 import gzip
 import json
-from pathlib import Path
 import re
 
 from build_rulings import fetch
@@ -60,12 +60,13 @@ def card_list(path, names, catalog):
     ))
 
 
-def publish(dist, upstream):
+def publish(dist, cached):
     data = dist / "data"
     printings = data / "printings"
     metadata = json.loads((printings / "meta.json").read_text(encoding="utf-8"))
     snapshot = metadata["snapshot"]
-    source_sets = {entry["code"]: entry for entry in upstream["data"]}
+    metadata_snapshot = cached["snapshot"]
+    release_dates = cached["releaseDates"]
     names = {row[2]: row[1] for row in json.loads((data / "index.json").read_text(encoding="utf-8"))}
     with gzip.open(data / "tokens.json.gz", "rt", encoding="utf-8") as stream:
         names.update({token["oracleId"]: token["name"] for token in json.load(stream)})
@@ -81,9 +82,8 @@ def publish(dist, upstream):
         slug = code.lower()
         if not SET_CODE.fullmatch(slug):
             raise ValueError(f"Invalid set code: {code}")
-        source = source_sets.get(slug, {})
         name = metadata["setNames"][code]
-        released = source.get("released_at")
+        released = release_dates.get(slug)
         cards = card_list(printings / f"set-{slug}.json.gz", names, catalog)
         summary = {"code": code, "name": name, "released": released, "entries": len(cards)}
         sets.append({**summary, "url": f"{slug}/", "json": f"{slug}/index.json"})
@@ -106,7 +106,10 @@ def publish(dist, upstream):
             f'<ul>{rows}</ul>',
         ), encoding="utf-8")
 
-    save_json(output / "index.json", {"snapshot": snapshot, "metadataSource": SETS_URL, "sets": sets})
+    save_json(output / "index.json", {
+        "snapshot": snapshot, "metadataSnapshot": metadata_snapshot,
+        "metadataSource": SETS_URL, "sets": sets,
+    })
     groups = defaultdict(list)
     for entry in sets:
         groups[entry["code"][0]].append(entry)
@@ -124,6 +127,7 @@ def publish(dist, upstream):
         "Browse sets", "../styles.css",
         '<p><a href="../">Lattice MTG</a> · <a href="../cards/">Card catalog</a></p>',
         f'<p>{len(sets):,} sets from the {escape(snapshot)} printing snapshot. '
+        f'Set metadata snapshot {escape(metadata_snapshot)}. '
         '<a href="index.json">Set index JSON</a></p>'
         f'<nav class="alphabet" aria-label="First character of set code">{jumps}</nav>'
         + "\n".join(sections),
@@ -131,8 +135,11 @@ def publish(dist, upstream):
     print(f"Published {len(sets):,} sets from the {snapshot} printing snapshot")
 
 
-if __name__ == "__main__":
+def download():
     upstream = json.loads(fetch(SETS_URL, "application/json"))
     if upstream["object"] != "list" or upstream["has_more"] or not upstream["data"]:
         raise ValueError("Expected a complete list of Scryfall sets")
-    publish(Path("dist"), upstream)
+    releases = {entry["code"]: entry.get("released_at") for entry in upstream["data"]}
+    if len(releases) != len(upstream["data"]):
+        raise ValueError("Duplicate Scryfall set code")
+    return {"snapshot": datetime.now(timezone.utc).date().isoformat(), "releaseDates": releases}

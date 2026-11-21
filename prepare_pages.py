@@ -14,7 +14,11 @@ def prepare(base_path):
 
     for page in ROOT.rglob("*.html"):
         original = page.read_text(encoding="utf-8")
-        html = ATTR_PATH.sub(lambda match: match[1] + prefix, original)
+        html = ATTR_PATH.sub(
+            lambda match: match[0] if original.startswith(prefix[1:], match.end())
+            else match[1] + prefix,
+            original,
+        )
         if page.parent == ROOT / "cards":
             html = CATALOG_LINK.sub(r"\1.html", html)
         if html != original:
