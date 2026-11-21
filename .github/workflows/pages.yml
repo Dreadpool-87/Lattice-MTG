@@ -5,7 +5,15 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  schedule:
+    - cron: '15 7 * * 0'
+      timezone: Europe/Brussels
   workflow_dispatch:
+    inputs:
+      refresh_data:
+        description: Refresh all Scryfall data before publishing
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -15,10 +23,52 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  refresh:
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || inputs.refresh_data)
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    permissions:
+      contents: write
+    outputs:
+      commit: ${{ steps.snapshot.outputs.commit }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read Pages configuration
+        id: refresh-pages
+        uses: actions/configure-pages@v5
+      - name: Fetch, verify, and commit changed Scryfall snapshots
+        id: snapshot
+        env:
+          PAGES_BASE_PATH: ${{ steps.refresh-pages.outputs.base_path }}
+        run: |
+          python3 refresh_cards.py
+          python3 site_data.py refresh
+          git add -A -- dist snapshots/site-data.json.xz
+          if git diff --cached --quiet; then
+            echo "No Scryfall content changes to publish." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          python3 site_data.py build
+          python3 prepare_pages.py "$PAGES_BASE_PATH"
+          node verify_site.mjs "$PAGES_BASE_PATH"
+          git -c user.name='github-actions[bot]' \
+              -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+              commit -m "Refresh Lattice MTG data from Scryfall"
+          git push origin HEAD:main
+          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
   prepare:
+    needs: refresh
+    if: >-
+      ${{ !cancelled() &&
+          ((needs.refresh.result == 'skipped' && github.event_name != 'schedule') ||
+           (needs.refresh.result == 'success' && needs.refresh.outputs.commit != '')) }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.refresh.outputs.commit || github.sha }}
+          persist-credentials: false
       - name: Read Pages configuration
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         id: pages

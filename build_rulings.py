@@ -38,7 +38,10 @@ def collect(metadata, compressed):
     if not rulings:
         raise ValueError("No official rulings in Scryfall export")
 
-    notes = {oracle_id: sorted(notes, reverse=True) for oracle_id, notes in sorted(rulings.items())}
+    notes = {
+        oracle_id: [list(note) for note in sorted(entries, reverse=True)]
+        for oracle_id, entries in sorted(rulings.items())
+    }
     return {
         "snapshot": snapshot, "source": BULK_URL,
         "rulings": sum(map(len, notes.values())), "cards": len(notes), "notes": notes,

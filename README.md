@@ -1,32 +1,33 @@
 # Lattice MTG
 
-A static Magic: The Gathering card explorer, collection import tool, HTML catalog, and compact JSON lookup.
+A static Magic: The Gathering card explorer and collection import tool. Card information is available in HTML and compact JSON.
 
-- `dist/` contains the built site and the committed card and printing snapshots. GitHub Pages builds the set and rulings indexes from the committed Scryfall snapshot in `snapshots/site-data.json.xz`.
-- The Python build scripts and HTML template generate the catalog and lookup assets.
-- The imported website snapshot is Lattice MTG version 19, source revision `ec746126f3d628e272b4d3f2fd1a162c141cc636`.
+- [Card explorer](https://dreadpool-87.github.io/Lattice-MTG/) searches by card name, Oracle ID, or rules text.
+- [Static card catalog](https://dreadpool-87.github.io/Lattice-MTG/cards/) provides Oracle text in HTML without JavaScript.
+- [Compact JSON lookup](https://dreadpool-87.github.io/Lattice-MTG/lookup/) documents the card name lookup routes, examples, and checksums.
+- [Collection](https://dreadpool-87.github.io/Lattice-MTG/collection/) imports CSV files with a card name, quantity, and Oracle ID or Scryfall ID in the browser.
 
-## Hosting
+## Set index
 
-[GitHub Pages](https://dreadpool-87.github.io/Lattice-MTG/) · [ChatGPT Sites](https://lattice-mtg-explorer.rustynashi5.chatgpt.site/) · [Scryfall data source](https://scryfall.com/docs/api/bulk-data)
+[Browse sets](https://dreadpool-87.github.io/Lattice-MTG/sets/) by set code or name. Each set page links to its card entries and JSON file. In the [JSON set index](https://dreadpool-87.github.io/Lattice-MTG/sets/index.json), find the entry by set code and follow its `json` field relative to the index URL.
 
-The **Publish Lattice MTG** workflow publishes `dist/` on pushes to `main`. It adapts local links to the GitHub Pages base path and adds explicit `.html` extensions to the catalog links during deployment. The pre-publish check verifies representative card links, lookup records, snapshot data, and CSV import. Publishing uses the committed snapshots and can build without contacting Scryfall. See [Build and rollback](#build-and-rollback).
+Set names and card membership come from the printing snapshot. Scryfall supplies release dates. Printings with the same collector number and Oracle ID share one row across languages and finishes. Alternate collector numbers and distinct Oracle IDs get separate rows.
 
-### Set index
+## Official rulings
 
-[Browse sets](https://dreadpool-87.github.io/Lattice-MTG/sets/) by set code or name. Each set page links to its card entries and its JSON file. The [JSON set index](https://dreadpool-87.github.io/Lattice-MTG/sets/index.json) links to a JSON file for each set, such as [M19](https://dreadpool-87.github.io/Lattice-MTG/sets/m19/index.json). Resolve relative URLs against the file they appear in.
+Lattice uses the Scryfall rulings export and keeps entries attributed to Wizards of the Coast. Oracle text and rulings have separate snapshot dates.
 
-Set names and card membership come from the committed printing snapshot. Scryfall supplies release dates. A collector number and Oracle ID share one row across languages and finishes. Alternate collector numbers and distinct Oracle IDs are listed separately.
+For machine lookup, use the first two characters of an Oracle ID as the filename under `data/rulings/`, with the `.json` extension. Each Oracle ID maps to a list of `[date, comment]` pairs. An absent ID in a successfully retrieved file means the snapshot contains no official ruling entries for that ID. Check the [rulings metadata](https://dreadpool-87.github.io/Lattice-MTG/data/rulings/meta.json) for the snapshot date and source.
 
-### Official rulings
+## Updates and hosting
 
-Lattice uses a pinned Scryfall rulings export and keeps entries attributed to Wizards of the Coast. The rules text and rulings snapshots have separate dates.
+[GitHub Pages](https://dreadpool-87.github.io/Lattice-MTG/) hosts the site. The [Publish Lattice MTG workflow](https://github.com/Dreadpool-87/Lattice-MTG/actions/workflows/pages.yml) refreshes data every Sunday at **07:15 Europe/Brussels**. It checks the paired Oracle Cards and All Cards exports for cards, rules text, format legality and printings, and refreshes set release dates and official rulings. It skips publication when the data is unchanged and leaves the last verified version online if a refresh fails.
 
-For machine lookup, use the first two characters of an Oracle ID as the file name under `data/rulings/`. For example, [`d2.json`](https://dreadpool-87.github.io/Lattice-MTG/data/rulings/d2.json) contains Kenrith, the Returned King under Oracle ID `d209b948-9afb-4fd1-a961-72c87282878c`. Each record is a list of `[date, comment]` pairs. An absent ID in a successfully retrieved file has no official ruling entries in that snapshot. See [`meta.json`](https://dreadpool-87.github.io/Lattice-MTG/data/rulings/meta.json) for the snapshot date and source.
+To refresh outside the schedule, run **Publish Lattice MTG** from `main` in GitHub Actions with **Refresh all Scryfall data before publishing** selected. The workflow also publishes after pushes to `main` using the committed data. This regular build can run without contacting Scryfall.
 
 ## Build and rollback
 
-Use a clean checkout, Python 3.11+ and Node.js 22+. To reproduce the GitHub Pages build from the committed inputs:
+Use a clean checkout, Python 3.11+ and Node.js 22+. To build and verify the site for GitHub Pages from the committed snapshots:
 
 ```sh
 python3 site_data.py build
@@ -34,10 +35,16 @@ python3 prepare_pages.py /Lattice-MTG
 node verify_site.mjs /Lattice-MTG
 ```
 
-The build writes the site to `dist/`. Use an empty base path for both commands that take a path to preview at the server root. Run `python3 -m http.server --directory dist` from that root-base checkout and open `http://localhost:8000/`. Build on a fresh checkout for each base path. The publication-only changes to `dist/` are generated during the Pages run.
+The build writes to `dist/`. For a local preview, pass an empty base path to `prepare_pages.py` and `verify_site.mjs`, then run `python3 -m http.server --directory dist` and open `http://localhost:8000/`. Start from a clean checkout when switching base paths.
 
-- **Refresh set metadata and rulings.** In GitHub Actions, run **Refresh Lattice set metadata and rulings** from `main`, then open the review link in the run summary. Merge the snapshot PR to publish it. Locally, run `python3 site_data.py refresh`, then run the build and checks above and commit only `snapshots/site-data.json.xz`. A failed or incomplete refresh keeps the previous file.
-- **Refresh Oracle and printing data.** Use `python3 build_scryfall.py bulk-data.json oracle-cards.jsonl.gz all-cards.jsonl.gz dist` on a clean checkout. Keep the Scryfall bulk metadata and both same-day JSONL gzip files together. The builder checks the archive sizes and records provenance in `dist/data/meta.json` and `dist/data/printings/meta.json`. Commit the resulting card and printing updates before running the Pages build above in a clean checkout.
-- **Roll back.** Locate the previous successful **Publish Lattice MTG** run to identify the working revision. Revert the faulty commit or PR through GitHub and merge the revert into `main`. The new Pages run rebuilds from the restored committed inputs. Check the run and open the site to confirm the rollback.
+The pre-publication check verifies representative links, card lookups, snapshot data, and CSV imports. To roll back a faulty update, revert its commit or PR on `main` and check the resulting **Publish Lattice MTG** run.
 
-Magic: The Gathering is a trademark of Wizards of the Coast. Lattice MTG is an unofficial project.
+## Credits and licensing
+
+- [Scryfall](https://scryfall.com/) supplies the [bulk card and ruling data](https://scryfall.com/docs/api/bulk-data) and [set metadata](https://scryfall.com/docs/api/sets).
+- [MTGJSON](https://mtgjson.com/) supplied data used by the original build, via [MTGJSON-slim](https://github.com/Dreadpool-87/MTGJSON-slim). The current data refresh uses Scryfall.
+- [sql.js](https://github.com/sql-js/sql.js) enables SQLite exports in the browser. The bundled copy retains its [MIT license](dist/collection/vendor/LICENSE.sql.js).
+
+Lattice MTG is unofficial Fan Content under the [Wizards of the Coast Fan Content Policy](https://company.wizards.com/en/legal/fancontentpolicy). Wizards has not approved or endorsed this project. Portions of the materials, including Magic: The Gathering card content, are property of Wizards of the Coast.
+
+The Lattice MTG source code currently has no project-wide license. Third-party code and data retain their respective notices and terms.
