@@ -21,7 +21,7 @@ For machine lookup, use the first two characters of an Oracle ID as the filename
 
 ## Updates and hosting
 
-[GitHub Pages](https://dreadpool-87.github.io/Lattice-MTG/) hosts the site. The [Publish Lattice MTG workflow](https://github.com/Dreadpool-87/Lattice-MTG/actions/workflows/pages.yml) refreshes data every Sunday at **07:15 Europe/Brussels**. It checks the paired Oracle Cards and All Cards exports for cards, rules text, format legality and printings, and refreshes set release dates and official rulings. It skips publication when the data is unchanged and leaves the last verified version online if a refresh fails.
+[GitHub Pages](https://dreadpool-87.github.io/Lattice-MTG/) hosts the site. The [Publish Lattice MTG workflow](https://github.com/Dreadpool-87/Lattice-MTG/actions/workflows/pages.yml) refreshes data every Sunday at **06:15 UTC during Belgian standard time** and **05:15 UTC during Belgian daylight saving time**. It checks the paired Oracle Cards and All Cards exports for cards, rules text, format legality and printings, and refreshes set release dates and official rulings. It skips publication when the data is unchanged and leaves the last verified version online if a refresh fails. The site shows the next scheduled check in the visitor’s local time.
 
 To refresh outside the schedule, run **Publish Lattice MTG** from `main` in GitHub Actions with **Refresh all Scryfall data before publishing** selected. The workflow also publishes after pushes to `main` using the committed data. This regular build can run without contacting Scryfall.
 

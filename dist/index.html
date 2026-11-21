@@ -8,6 +8,7 @@
   <meta name="description" content="Search Magic: The Gathering cards, explore Oracle text, or import your collection.">
   <link rel="stylesheet" href="/styles.css">
   <script type="module" src="/app.mjs"></script>
+  <script type="module" src="/update-time.mjs"></script>
 </head>
 <body class="explorer">
   <header class="sitebar">
@@ -60,7 +61,10 @@
       </section>
       <section class="panel" id="detail" aria-label="Card details" tabindex="-1" hidden></section>
     </div>
-    <footer>Card data from <a href="https://scryfall.com/docs/api/bulk-data">Scryfall</a>. Unofficial Magic: The Gathering fan content. Portions © Wizards of the Coast.</footer>
+    <footer>
+      <p id="next-data-update">Data check every Sunday at 07:15 Belgian time.</p>
+      Card data from <a href="https://scryfall.com/docs/api/bulk-data">Scryfall</a>. Unofficial Magic: The Gathering fan content. Portions © Wizards of the Coast.
+    </footer>
   </main>
 </body>
 </html>
