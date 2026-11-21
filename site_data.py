@@ -62,6 +62,13 @@ def refresh():
         for current, old, label in counts:
             if current * 10 < old * 9:
                 raise ValueError(f"Unexpected {label} count: {old:,} → {current:,}")
+        for name, field in (("sets", "releaseDates"), ("rulings", "notes")):
+            # Preserve the published snapshot date when only the export timestamp changed.
+            if snapshot[name][field] == previous[name][field]:
+                snapshot[name] = previous[name]
+        if snapshot == previous:
+            print("Set metadata and official rulings have not changed.")
+            return
 
     SNAPSHOT.parent.mkdir(exist_ok=True)
     with NamedTemporaryFile(dir=SNAPSHOT.parent, delete=False) as staged:
