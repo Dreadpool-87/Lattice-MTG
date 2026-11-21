@@ -8,8 +8,8 @@ A static Magic: The Gathering card explorer, collection import tool, HTML catalo
 
 ## Hosting
 
-Use `dist/` as the root of the website. The catalog uses extensionless HTML links. Configure the host to serve the corresponding `.html` files for those routes. The explorer also uses root-relative paths.
+[GitHub Pages](https://dreadpool-87.github.io/Lattice-MTG/) · [ChatGPT Sites](https://lattice-mtg-explorer.rustynashi5.chatgpt.site/) · [Scryfall data source](https://scryfall.com/docs/api/bulk-data)
 
-[Live website](https://lattice-mtg-explorer.rustynashi5.chatgpt.site/) · [Scryfall data source](https://scryfall.com/docs/api/bulk-data)
+The **Publish Lattice MTG** workflow publishes `dist/` on pushes to `main`. It adapts local links to the GitHub Pages base path and adds explicit `.html` extensions to the catalog links during deployment. Publishing uses the committed card snapshot. Refresh the Scryfall data separately before committing a new snapshot.
 
 Magic: The Gathering is a trademark of Wizards of the Coast. Lattice MTG is an unofficial project.
