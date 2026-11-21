@@ -1,5 +1,5 @@
 import {parseCollection, matchCollection, exportText, exportSQLite, states} from "./collection.mjs";
-import {gathererPrintingUrl, gathererSearchUrl, loadPrintingIndex, printingStates, readGzipJson, scryfallUrl} from "../printings.mjs";
+import {gathererPrintingUrl, gathererSearchUrl, loadPrintingIndex, nameKey, printingStates, readGzipJson, scryfallUrl} from "../printings.mjs";
 
 const el = id => document.getElementById(id);
 const format = new Intl.NumberFormat("en");
@@ -51,7 +51,8 @@ function updateGroups() {
 
 function renderFaces(card, target, showTitle) {
   if (showTitle) target.append(node("h3", card.name));
-  const link = node("a", "Card Explorer · " + card.oracleId, "oid");
+  const link = node("a", "Open in Card Explorer", "collection-card-link");
+  link.setAttribute("aria-label", `Open ${card.name} in Card Explorer`);
   link.href = "/?card=" + encodeURIComponent(card.oracleId);
   target.append(link);
   for (const face of card.faces) {
@@ -64,7 +65,7 @@ function renderFaces(card, target, showTitle) {
 }
 
 function externalLink(label, url) {
-  const link = node("a", label);
+  const link = node("a", label, "collection-card-link");
   link.href = url;
   link.target = "_blank";
   link.rel = "noopener";
@@ -89,33 +90,53 @@ function rowDetails(group) {
     const list = node("ul", undefined, "collection-entries");
     const directGatherer = new Set();
     for (const item of group.items) {
-      const printing = [item.setCode.toUpperCase() || item.editionName, item.collectorNumber && "#" + item.collectorNumber].filter(Boolean).join(" ");
-      const row = node("li");
-      row.append(node("span", `×${format.format(item.quantity)}${printing ? " · " + printing : ""}`));
-      if (item.printingId || (item.setCode && item.collectorNumber)) row.append(node("span", printingStates[item.printingStatus], "tag printing-status"));
-      if (item.reason) row.append(node("div", item.reason, "hint"));
-      for (const {record, conflicts} of item.printingCheck.matches ?? []) {
-        const name = [`Index ${record.setCode} #${record.collectorNumber}`, record.printedName, record.language].filter(Boolean).join(" · ");
+      const matches = item.printingCheck.matches ?? [];
+      const verified = item.printingStatus === "verified";
+      const primary = verified && matches.length === 1 ? matches[0].record : null;
+      const set = primary?.setCode || item.setCode.toUpperCase() || item.editionName;
+      const number = primary?.collectorNumber || item.collectorNumber;
+      const printing = [set, number && "#" + number].filter(Boolean).join(" ");
+      const row = node("li", undefined, "collection-printing");
+      const heading = node("div", undefined, "collection-printing-header");
+      heading.append(node("span", `×${format.format(item.quantity)}`, "collection-printing-quantity"));
+      if (printing) heading.append(node("strong", printing));
+      if (item.printingId || (item.setCode && item.collectorNumber)) {
+        const status = node("span", printingStates[item.printingStatus], "tag printing-status");
+        status.dataset.status = item.printingStatus;
+        heading.append(status);
+      }
+      row.append(heading);
+      if (item.reason) row.append(node("p", item.reason, "hint"));
+      for (const {record, conflicts} of matches) {
+        const identity = primary ? "" : `Index match · ${record.setCode} #${record.collectorNumber}`;
+        const printedName = record.printedName && (!primary || nameKey(record.printedName) !== nameKey(group.name))
+          ? record.printedName : "";
+        const description = [identity, printedName, record.language.toUpperCase()].filter(Boolean).join(" · ");
         const metadata = node("div", undefined, "printing-match");
-        metadata.append(node("span", conflicts.length ? name + " · differs: " + conflicts.join(", ") : name));
+        if (description) metadata.append(node("p", description, "hint"));
+        if (conflicts.length) metadata.append(node("p", "Differs in " + conflicts.join(", "), "hint"));
+        const links = node("div", undefined, "collection-links");
         const scryfall = scryfallUrl(record.printingId);
-        if (scryfall) metadata.append(externalLink("View on Scryfall", scryfall));
+        if (scryfall) links.append(externalLink("Scryfall", scryfall));
         const gatherer = gathererPrintingUrl(record.multiverseId);
-        if (gatherer && item.printingStatus === "verified" && item.oracleIds.includes(record.oracleId)) {
-          metadata.append(externalLink("View on Gatherer", gatherer));
+        if (gatherer && verified && item.oracleIds.includes(record.oracleId)) {
+          links.append(externalLink("Gatherer", gatherer));
           directGatherer.add(record.oracleId);
         }
-        row.append(metadata);
+        if (links.childElementCount) metadata.append(links);
+        if (metadata.childElementCount) row.append(metadata);
       }
       list.append(row);
     }
     details.append(list);
+    const searches = node("div", undefined, "collection-links collection-gatherer");
     for (const id of ids) {
       const card = cards.get(id);
       if (card.isToken || directGatherer.has(id)) continue;
-      const label = ids.size > 1 ? `Search Gatherer for ${card.name}` : "Search Gatherer by card name";
-      details.append(externalLink(label, gathererSearchUrl(card.name)));
+      const label = ids.size > 1 ? `Search Gatherer for ${card.name}` : "Search Gatherer";
+      searches.append(externalLink(label, gathererSearchUrl(card.name)));
     }
+    if (searches.childElementCount) details.append(searches);
   }, {once: true});
   return details;
 }
