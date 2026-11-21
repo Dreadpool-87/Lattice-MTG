@@ -28,7 +28,7 @@ function page(message, { status = 200, runId, canStart = false } = {}) {
         "Content-Type": "text/html; charset=utf-8",
         "Cache-Control": "no-store",
         "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; script-src 'nonce-" + nonce + "'; style-src 'nonce-" + nonce + "'",
-        "Referrer-Policy": "no-referrer",
+        "Referrer-Policy": "same-origin",
         "X-Content-Type-Options": "nosniff",
         "X-Robots-Tag": "noindex",
       },
