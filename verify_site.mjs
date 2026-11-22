@@ -4,7 +4,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gunzipSync } from "node:zlib";
-import { exportHtml, exportJsonl, exportMarkdown, exportTsv, matchCollection, parseCollection } from "./dist/collection/collection.mjs";
+import { exportHtml, exportJsonl, exportMarkdown, exportText, exportTsv, matchCollection, parseCollection } from "./dist/collection/collection.mjs";
 import { makePrintingIndex } from "./dist/printings.mjs";
 
 const dist = fileURLToPath(new URL("./dist/", import.meta.url));
@@ -229,5 +229,35 @@ assert.match(splitRow.fields.at(-2), /^Fire: .+\\nIce: .+/);
 assert.match(splitRow.fields.at(-1), /^Fire: .+\\nIce: .+/);
 assert.match(multiMarkdown, /\| Instants \| 3 \| 6 \|/);
 assert.match(multiMarkdown, /### Lightning Bolt[\s\S]*### Lightning Strike[\s\S]*### Fire \/\/ Ice · 1 copy[\s\S]*#### Fire[\s\S]*#### Ice/);
+
+if (json("data/meta.json").deckDataVersion) {
+  const [tower] = lookup("commandtower", "Command Tower");
+  const [tomb] = lookup("ancienttomb", "Ancient Tomb");
+  assert.deepEqual([...tower.producedMana].sort(), ["B", "G", "R", "U", "W"]);
+  assert.deepEqual(tomb.producedMana, ["C"]);
+  const inputWithMana = parseCollection(`${header}\nAncient Tomb,1,${tomb.oracleId}`);
+  const publishedCatalog = gzipJson("collection/catalog.json.gz");
+  const exported = matchCollection(inputWithMana, publishedCatalog, null);
+  assert.deepEqual(exported.cards[0].producedMana, ["C"]);
+  for (const exportFile of [exportText, exportMarkdown, exportHtml]) {
+    assert.match(exportFile(exported), /Possible mana: C/);
+  }
+  const tsv = parseCollection(exportTsv(exported, {includeOracle: true}));
+  assert.equal(tsv.items[0].fields[tsv.columns.indexOf("Possible mana")], "C");
+  const [fableId] = json("data/index.json").find(row => row[1] === "Fable of the Mirror-Breaker // Reflection of Kiki-Jiki");
+  const fable = json(`data/cards-${Math.floor(fableId / 128)}.json`)[fableId];
+  assert.ok(fable.relatedCards.some(part => part.name === "Goblin Shaman" && part.component === "token"));
+  assert.ok(fable.relatedCards.every(part => part.name !== fable.name && part.oracleId !== fable.oracleId));
+}
+if (sets.sets.some(set => set.setType)) {
+  assert.match(read("sets/index.html"), /Filter by set type/);
+  assert.equal(resolveLink("type-minigame.html", "sets/index.html"), "sets/type-minigame.html");
+  assert.match(read("sets/type-minigame.html"), /href="mltr\/"/);
+  const minigames = json("sets/mltr/index.json");
+  assert.equal(minigames.setType, "minigame");
+  assert.equal(minigames.parentSetCode, "LTR");
+  assert.match(read("sets/mltr/index.html"), /Parent set <a href="\.\.\/ltr\//);
+  resolveLink("../ltr/", "sets/mltr/index.html");
+}
 
 console.log("Verified Pages links, lookup fixtures, snapshots, checksum, and collection import and exports.");
