@@ -7,6 +7,7 @@ import re
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
+import build_lookup
 import build_rulings
 import build_sets
 
@@ -87,6 +88,7 @@ def build():
     dist = ROOT / "dist"
     build_sets.publish(dist, snapshot["sets"])
     build_rulings.publish(dist / "data" / "rulings", snapshot["rulings"])
+    build_lookup.build_card_part_index(dist / "lookup")
 
     lookup = dist / "lookup" / "index.html"
     page, count = re.subn(
