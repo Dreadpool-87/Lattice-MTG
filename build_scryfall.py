@@ -15,6 +15,20 @@ from build_static_catalog import build as build_static
 SOURCE = "https://scryfall.com/docs/api/bulk-data"
 TOKEN_LAYOUTS = {"token", "double_faced_token", "emblem"}
 STATS = ("power", "toughness", "loyalty", "defense")
+PRINTING_VARIANTS_VERSION = 1
+
+
+def printing_variants(raw):
+    effects = raw.get("frame_effects") or []
+    return ",".join(name for name, present in (
+        ("borderless", raw.get("border_color") == "borderless"),
+        ("showcase", "showcase" in effects),
+        ("extendedart", "extendedart" in effects),
+        ("fullart", raw.get("full_art")),
+        ("textless", raw.get("textless")),
+        ("promo", raw.get("promo")),
+        ("serialized", "serialized" in (raw.get("promo_types") or [])),
+    ) if present)
 
 
 def records(path, metadata):
@@ -132,6 +146,7 @@ def build(dist, catalog_path, print_path, metadata):
         code = raw["set"].upper()
         set_names[code] = raw["set_name"]
         token = raw["layout"] in TOKEN_LAYOUTS
+        variants = printing_variants(raw)
         parents = raw.get("card_faces", []) if raw["layout"] == "reversible_card" else [raw]
         for face in parents:
             oid = face.get("oracle_id")
@@ -141,7 +156,9 @@ def build(dist, catalog_path, print_path, metadata):
                    face.get("printed_name") or face.get("flavor_name") or face["name"],
                    ", ".join(raw.get("finishes", [])), int(token))
             ids = raw.get("multiverse_ids")
-            if ids:
+            if variants:
+                row += (ids[0] if ids else None, variants)
+            elif ids:
                 row += (ids[0],)
             prints_by_set[code].add(row)
             if not token:
@@ -169,6 +186,7 @@ def build(dist, catalog_path, print_path, metadata):
         "snapshot": snapshot, "source": SOURCE, "download": all_meta["jsonl_download_uri"],
         "updatedAt": all_meta["updated_at"], "count": print_count, "setShards": sorted(prints_by_set),
         "sha256": print_hash, "setNames": set_names,
+        "variantsVersion": PRINTING_VARIANTS_VERSION,
         "idSetShards": write_printing_routes(printings, prints_by_set),
     })
 
