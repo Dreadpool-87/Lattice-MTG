@@ -144,6 +144,7 @@ def main():
         + '<p>Oracle changes cover card records and format legality. Set changes cover names '
         'and release dates. Rulings are compared by card, date and text, so a rewritten ruling '
         'counts as one removal and one addition.</p>'
+        '<footer><a href="https://lattice-mtg-admin.dreadpool.workers.dev/" referrerpolicy="no-referrer">Admin</a></footer>'
     )
     (OUTPUT / "index.html").write_text(
         page("Data updates", "../styles.css", '<p><a href="../">Lattice MTG</a></p>', content),

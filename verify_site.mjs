@@ -68,6 +68,9 @@ for (const route of ["browse/", "../data/tokens.json.gz", "../sets/", "../data/r
 }
 
 const updates = read("updates/index.html");
+const adminUrl = 'href="https://lattice-mtg-admin.dreadpool.workers.dev/"';
+assert.ok(!index.includes(adminUrl), "Admin link should stay off the homepage");
+assert.ok(updates.includes(adminUrl), "Data updates should link to the protected admin page");
 assert.ok(updates.includes('href="history.json"'));
 resolveLink("history.json", "updates/index.html");
 const history = json("updates/history.json");
