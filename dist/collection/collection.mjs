@@ -287,13 +287,23 @@ export function exportMarkdown(collection) {
   return lines.join("\n") + credit + "\n";
 }
 
-export function exportTsv(collection) {
+export function exportTsv(collection, {includeOracle = false} = {}) {
   const {counts, cards} = deckInventory(collection);
   const rows = [["Name", "Quantity", "Oracle ID", "Type lines", "Mana value", "Color identity"]];
+  if (includeOracle) rows[0].push("Mana costs", "Oracle text");
   for (const card of cards) {
-    rows.push([card.name, counts.get(card.oracleId), card.oracleId,
+    const row = [card.name, counts.get(card.oracleId), card.oracleId,
       card.faces.map(face => face.type).join(" // "),
-      card.catalogManaValue ?? "", colorIdentity(card)]);
+      card.catalogManaValue ?? "", colorIdentity(card)];
+    if (includeOracle) {
+      const parts = property => card.faces.map(face => {
+        const value = face[property] ?? "";
+        return card.faces.length > 1 ? `${face.name}: ${value}` : value;
+      }).join("\n");
+      row.push(...["manaCost", "oracleText"].map(property => parts(property)
+        .replaceAll("\\", "\\\\").replaceAll("\r", "\\r").replaceAll("\n", "\\n").replaceAll("\t", "\\t")));
+    }
+    rows.push(row);
   }
   return rows.map(row => row.map(value => {
     const text = String(value).replace(/[\t\r\n]/g, " ");

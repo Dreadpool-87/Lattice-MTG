@@ -87,7 +87,7 @@ const collectionScript = `${basePath}/collection/page.mjs?v=${assetVersion("coll
 assert.ok(collectionPage.includes(`href="${collectionStyle}"`));
 assert.ok(collectionPage.includes(`src="${collectionScript}"`));
 assert.ok(read("collection/page.mjs").includes(`"./collection.mjs?v=${assetVersion("collection/collection.mjs")}"`));
-for (const extension of ["txt", "json", "sqlite", "md", "tsv", "html", "jsonl", "yaml"]) {
+for (const extension of ["txt", "json", "sqlite", "md", "tsv", "tsv-oracle", "html", "jsonl", "yaml"]) {
   assert.ok(collectionPage.includes(`<option value="${extension}">`));
 }
 assert.equal(resolveLink(themeScript, "index.html"), "theme.js");
@@ -192,6 +192,14 @@ assert.match(offlineHtml, /Format legality/);
 const multiInput = parseCollection(`${header}\nFire // Ice,1,${split.oracleId}\nLightning Strike,3,${strike.oracleId}\nLightning Bolt,2,${boltId}`);
 const multi = matchCollection(multiInput, {snapshot: sets.snapshot, source: "Scryfall", cards: [split, strike, bolt]}, null);
 const multiMarkdown = exportMarkdown(multi);
+const oracleTsv = exportTsv(multi, {includeOracle: true});
+const oracleRows = parseCollection(oracleTsv);
+assert.deepEqual(oracleRows.columns.slice(-2), ["Mana costs", "Oracle text"]);
+assert.equal(oracleTsv.trimEnd().split("\n").length, 4);
+const splitRow = oracleRows.items.find(item => item.oracleId === split.oracleId);
+assert.equal(splitRow.quantity, 1);
+assert.match(splitRow.fields.at(-2), /^Fire: .+\\nIce: .+/);
+assert.match(splitRow.fields.at(-1), /^Fire: .+\\nIce: .+/);
 assert.match(multiMarkdown, /\| Instants \| 3 \| 6 \|/);
 assert.match(multiMarkdown, /### Lightning Bolt[\s\S]*### Lightning Strike[\s\S]*### Fire \/\/ Ice · 1 copy[\s\S]*#### Fire[\s\S]*#### Ice/);
 

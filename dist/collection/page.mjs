@@ -393,6 +393,7 @@ const exportsByFormat = {
   txt: ["text/plain;charset=utf-8", exportText],
   md: ["text/markdown;charset=utf-8", exportMarkdown],
   tsv: ["text/tab-separated-values;charset=utf-8", exportTsv],
+  "tsv-oracle": ["text/tab-separated-values;charset=utf-8", current => exportTsv(current, {includeOracle: true}), "-oracle.tsv"],
   html: ["text/html;charset=utf-8", exportHtml],
   json: ["application/json", JSON.stringify],
   jsonl: ["application/x-ndjson", exportJsonl],
@@ -407,15 +408,16 @@ exportFormat.addEventListener("change", () => { exportStatus.textContent = ""; }
 downloadCollection.addEventListener("click", async () => {
   if (!collection) return;
   const current = collection;
-  const extension = exportFormat.value;
-  const [type, serialize] = exportsByFormat[extension];
+  const formatKey = exportFormat.value;
+  const [type, serialize, suffix = "." + formatKey] = exportsByFormat[formatKey];
+  const extension = suffix.split(".").at(-1);
   downloadCollection.disabled = true;
   exportFormat.disabled = true;
   exportStatus.textContent = `Preparing .${extension} export…`;
   try {
     const bytes = await serialize(current);
     if (current !== collection) return;
-    download(bytes, "." + extension, type);
+    download(bytes, suffix, type);
     exportStatus.textContent = `.${extension} export ready.`;
   } catch {
     if (current === collection) exportStatus.textContent = `Could not export .${extension}. Try again.`;
