@@ -1,4 +1,4 @@
-# Lattice MTG
+# <img src="./docs/lattice-spark-badge.svg" width="32" height="32" alt=""> Lattice MTG
 
 A static Magic: The Gathering card explorer and collection import tool. Card information is available in HTML and compact JSON.
 
