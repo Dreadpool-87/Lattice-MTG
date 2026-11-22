@@ -203,6 +203,7 @@ export function exportText(collection) {
       `Layout: ${card.layout}`);
     if (card.catalogManaValue != null) lines.push(`Mana value: ${card.catalogManaValue}`);
     if (card.colorIdentity) lines.push(`Color identity: ${card.colorIdentity.join("") || "colorless"}`);
+    if (card.producedMana?.length) lines.push(`Possible mana: ${card.producedMana.join(", ")}`);
     for (const face of card.faces) {
       if (card.faces.length > 1) lines.push(`Part: ${face.name}`);
       lines.push(faceDetails(face));
@@ -279,6 +280,7 @@ export function exportMarkdown(collection) {
         }
       }
       lines.push(`Oracle ID: \`${card.oracleId}\` · Color identity: ${colorIdentity(card)} · Mana value: ${card.catalogManaValue ?? "Unknown"}`, "");
+      if (card.producedMana?.length) lines.push(`Possible mana: ${card.producedMana.join(", ")}`, "");
     }
   }
   for (const {title, rows} of extras) {
@@ -289,12 +291,12 @@ export function exportMarkdown(collection) {
 
 export function exportTsv(collection, {includeOracle = false} = {}) {
   const {counts, cards} = deckInventory(collection);
-  const rows = [["Name", "Quantity", "Oracle ID", "Type lines", "Mana value", "Color identity"]];
+  const rows = [["Name", "Quantity", "Oracle ID", "Type lines", "Mana value", "Color identity", "Possible mana"]];
   if (includeOracle) rows[0].push("Mana costs", "Oracle text");
   for (const card of cards) {
     const row = [card.name, counts.get(card.oracleId), card.oracleId,
       card.faces.map(face => face.type).join(" // "),
-      card.catalogManaValue ?? "", colorIdentity(card)];
+      card.catalogManaValue ?? "", colorIdentity(card), card.producedMana?.join(", ") ?? ""];
     if (includeOracle) {
       const parts = property => card.faces.map(face => {
         const value = face[property] ?? "";
@@ -330,6 +332,7 @@ ${face.oracleText ? `<p class="rules">${escapeHtml(face.oracleText)}</p>` : ""}
       return `<article><h3>${escapeHtml(card.name)} · ${copiesLabel(counts.get(card.oracleId))}</h3>
 ${faces}
 <p class="card-meta">Oracle ID: <code>${escapeHtml(card.oracleId)}</code> · Color identity: ${escapeHtml(colorIdentity(card))} · Mana value: ${escapeHtml(card.catalogManaValue ?? "Unknown")}</p>
+${card.producedMana?.length ? `<p class="card-meta">Possible mana: ${escapeHtml(card.producedMana.join(", "))}</p>` : ""}
 ${legality ? `<details><summary>Format legality</summary><ul>${legality}</ul></details>` : ""}
 </article>`;
     }).join("\n");
