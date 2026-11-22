@@ -6,8 +6,9 @@ on:
   pull_request:
     branches: [main]
   schedule:
-    - cron: '15 7 * * 0'
-      timezone: Europe/Brussels
+    - cron: '15 5 * * 0'
+    - cron: '15 6 * * 0'
+    - cron: '19 8 22 11 *' # Catch up on the missed Sunday refresh
   workflow_dispatch:
     inputs:
       refresh_data:
@@ -23,8 +24,42 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  schedule:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    outputs:
+      refresh: ${{ steps.check.outputs.refresh }}
+    steps:
+      - name: Match the Sunday refresh against Belgian local time
+        id: check
+        env:
+          SCHEDULE_CRON: ${{ github.event.schedule }}
+        run: |
+          python3 - <<'PYTHON'
+          from datetime import datetime, time, timedelta, timezone
+          from os import environ
+          from zoneinfo import ZoneInfo
+
+          today = datetime.now(timezone.utc).date()
+          sunday = today - timedelta(days=(today.weekday() + 1) % 7)
+          minute, hour, *_ = environ["SCHEDULE_CRON"].split()
+          planned = datetime.combine(sunday, time(int(hour), int(minute)), timezone.utc)
+          brussels = planned.astimezone(ZoneInfo("Europe/Brussels"))
+          refresh = (brussels.hour, brussels.minute) == (7, 15)
+          if environ["SCHEDULE_CRON"] == "19 8 22 11 *":
+              refresh = today.isoformat() == "2026-11-22"
+
+          print(f"Scheduled time in Brussels: {brussels.isoformat()}")
+          with open(environ["GITHUB_OUTPUT"], "a") as output:
+              print(f"refresh={str(refresh).lower()}", file=output)
+          PYTHON
+
   refresh:
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || inputs.refresh_data)
+    needs: schedule
+    if: >-
+      ${{ !cancelled() && github.ref == 'refs/heads/main' &&
+          ((github.event_name == 'schedule' && needs.schedule.outputs.refresh == 'true') ||
+           (github.event_name == 'workflow_dispatch' && inputs.refresh_data)) }}
     runs-on: ubuntu-latest
     timeout-minutes: 35
     permissions:
