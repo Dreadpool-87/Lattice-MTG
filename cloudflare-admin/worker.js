@@ -37,6 +37,25 @@ function checkResult(run, published) {
   return published ? "New data published" : "No changes";
 }
 
+function escapeHtml(value) {
+  return value.replace(/[&<>"']/g, char => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  })[char]);
+}
+
+function failureDetails(run, jobs) {
+  if (run.status !== "completed" || ["success", "cancelled"].includes(run.conclusion)) return "";
+  const failed = jobs.find(job => ["failure", "timed_out", "action_required", "startup_failure"].includes(job.conclusion));
+  if (!failed) return "";
+  const step = failed.steps?.find(item => item.conclusion === "failure" || item.conclusion === "timed_out");
+  const jobLabels = { refresh: "Data refresh", prepare: "Site build and verification", deploy: "GitHub Pages deployment" };
+  const label = (jobLabels[failed.name] ?? failed.name) + (step?.name ? " / " + step.name : "");
+  const jobLink = Number.isSafeInteger(failed.id) && failed.id > 0
+    ? '<a href="' + repository + '/actions/runs/' + run.id + '/job/' + failed.id + '">' + escapeHtml(label) + '</a>'
+    : escapeHtml(label);
+  return " · " + jobLink;
+}
+
 async function updateHistory(token) {
   const unavailable = { lastCheck: "Unavailable", lastUpdate: "Unavailable" };
   if (!token) return unavailable;
@@ -49,7 +68,7 @@ async function updateHistory(token) {
     return response.json();
   };
 
-  let lastCheck;
+  const recentChecks = [];
   let lastUpdate;
   try {
     const groups = await Promise.all(Object.keys(workflowSources).map(async (event) => {
@@ -66,27 +85,30 @@ async function updateHistory(token) {
       if (!refresh && run.status === "completed" && run.event === "workflow_dispatch") continue;
       const published = refresh?.conclusion === "success" &&
         jobs.find(job => job.name === "deploy" && job.conclusion === "success");
-      if (!lastCheck) {
+      if (recentChecks.length < 5) {
         const time = run.status === "completed" ? run.updated_at : run.run_started_at ?? run.created_at;
-        lastCheck = runDetails(run, time) + " · " + checkResult(run, published);
+        recentChecks.push(runDetails(run, time) + " · " + checkResult(run, published) + failureDetails(run, jobs));
       }
-      if (published) {
-        lastUpdate = runDetails(run, published.completed_at);
-        break;
-      }
+      if (published && !lastUpdate) lastUpdate = runDetails(run, published.completed_at);
+      if (lastUpdate && recentChecks.length === 5) break;
     }
     return {
-      lastCheck: lastCheck ?? "No data check found in recent runs",
+      lastCheck: recentChecks[0] ?? "No data check found in recent runs",
+      recentChecks,
       lastUpdate: lastUpdate ?? "No data publication found in recent runs",
     };
   } catch {
-    return { lastCheck: lastCheck ?? "Temporarily unavailable", lastUpdate: lastUpdate ?? "Temporarily unavailable" };
+    return {
+      lastCheck: recentChecks[0] ?? "Temporarily unavailable",
+      lastUpdate: lastUpdate ?? "Temporarily unavailable",
+      recentChecks,
+    };
   } finally {
     clearTimeout(timeout);
   }
 }
 
-function page(message, { status = 200, runId, canStart = false, lastCheck, lastUpdate } = {}) {
+function page(message, { status = 200, runId, canStart = false, lastCheck, lastUpdate, recentChecks } = {}) {
   const nonce = crypto.randomUUID();
   const runLink = runId
     ? '<p><a href="' + repository + '/actions/runs/' + runId + '">View workflow run</a></p>'
@@ -94,6 +116,10 @@ function page(message, { status = 200, runId, canStart = false, lastCheck, lastU
   const form = canStart
     ? '<form method="post" action="/refresh"><button>Update now</button></form>'
     : '<p><a href="/">Back to admin</a></p>';
+  const history = recentChecks?.length
+    ? '<details><summary>Recent data checks</summary><ol>' +
+      recentChecks.map(check => '<li>' + check + '</li>').join('') + '</ol></details>'
+    : '';
   return new Response(
     '<!doctype html><html lang="en"><meta charset="utf-8">' +
     '<meta name="viewport" content="width=device-width, initial-scale=1">' +
@@ -103,7 +129,7 @@ function page(message, { status = 200, runId, canStart = false, lastCheck, lastU
     'button{font:inherit;padding:.75rem 1.25rem}</style>' +
     '<main><h1>Lattice MTG Admin</h1><p>' + message + '</p>' +
     form + (lastCheck ? '<p>Last data check: ' + lastCheck + '</p>' : '') +
-    (lastUpdate ? '<p>Last published update: ' + lastUpdate + '</p>' : '') + runLink + '</main>' +
+    (lastUpdate ? '<p>Last published update: ' + lastUpdate + '</p>' : '') + history + runLink + '</main>' +
     '<script nonce="' + nonce + '">document.querySelector("form")?.addEventListener("submit", ' +
     'event => {const button=event.currentTarget.querySelector("button");' +
     'button.disabled=true;button.textContent="Starting…";});</script></html>',
