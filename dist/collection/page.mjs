@@ -51,12 +51,8 @@ function updateGroups() {
   cards = new Map(collection.cards.map(card => [card.oracleId, card]));
 }
 
-function renderFaces(card, target, showTitle) {
+function renderFaces(card, target, showTitle, searchGatherer) {
   if (showTitle) target.append(node("h3", card.name));
-  const link = node("a", "Open in Card Explorer", "collection-card-link");
-  link.setAttribute("aria-label", `Open ${card.name} in Card Explorer`);
-  link.href = "/?card=" + encodeURIComponent(card.oracleId);
-  target.append(link);
   for (const face of card.faces) {
     const details = node("article", undefined, "face");
     const label = [face.type, face.manaCost, face.power && `${face.power}/${face.toughness}`].filter(Boolean).join(" · ");
@@ -64,6 +60,17 @@ function renderFaces(card, target, showTitle) {
     if (face.oracleText) details.append(node("p", face.oracleText, "rules"));
     target.append(details);
   }
+  const actions = node("div", undefined, "collection-links");
+  const link = node("a", "Open in Card Explorer", "collection-card-link");
+  link.setAttribute("aria-label", `Open ${card.name} in Card Explorer`);
+  link.href = "/?card=" + encodeURIComponent(card.oracleId);
+  actions.append(link);
+  if (searchGatherer) {
+    const gatherer = externalLink("Search Gatherer", gathererSearchUrl(card.name));
+    gatherer.setAttribute("aria-label", `Search Gatherer for ${card.name}`);
+    actions.append(gatherer);
+  }
+  target.append(actions);
 }
 
 function externalLink(label, url) {
@@ -114,14 +121,9 @@ function rowDetails(group) {
   details.addEventListener("toggle", () => {
     if (!details.open) return;
     const ids = new Set(group.items.flatMap(item => item.oracleIds));
-    if (ids.size) {
-      const faces = node("div", undefined, "collection-faces");
-      for (const id of ids) renderFaces(cards.get(id), faces, ids.size > 1);
-      details.append(faces);
-    }
-    if (group.status === "token") details.append(node("p", "Tracked separately from deck inventory.", "hint"));
     const list = node("ul", undefined, "collection-entries");
     const directGatherer = new Set();
+    const foilColumn = collection.columns.findIndex(column => column.trim().toLowerCase() === "foil");
     for (const item of group.items) {
       const matches = item.printingCheck.matches ?? [];
       const verified = item.printingStatus === "verified";
@@ -133,6 +135,9 @@ function rowDetails(group) {
       const heading = node("div", undefined, "collection-printing-header");
       heading.append(node("span", `×${format.format(item.quantity)}`, "collection-printing-quantity"));
       if (printing) heading.append(node("strong", printing));
+      if (/^(foil|yes|true|1)$/i.test(item.fields[foilColumn]?.trim())) {
+        heading.append(node("span", "Foil", "tag"));
+      }
       if (item.printingId || (item.setCode && item.collectorNumber)) {
         const status = node("span", printingStates[item.printingStatus], "tag printing-status");
         status.dataset.status = item.printingStatus;
@@ -161,15 +166,14 @@ function rowDetails(group) {
       }
       list.append(row);
     }
-    details.append(list);
-    const searches = node("div", undefined, "collection-links collection-gatherer");
+    const faces = node("div", undefined, "collection-faces");
     for (const id of ids) {
       const card = cards.get(id);
-      if (card.isToken || directGatherer.has(id)) continue;
-      const label = ids.size > 1 ? `Search Gatherer for ${card.name}` : "Search Gatherer";
-      searches.append(externalLink(label, gathererSearchUrl(card.name)));
+      renderFaces(card, faces, ids.size > 1, !card.isToken && !directGatherer.has(id));
     }
-    if (searches.childElementCount) details.append(searches);
+    if (faces.childElementCount) details.append(faces);
+    if (group.status === "token") details.append(node("p", "Tracked separately from deck inventory.", "hint"));
+    details.append(list);
   }, {once: true});
   return details;
 }
@@ -315,7 +319,7 @@ async function importCollection(selected, restoring = false) {
     if (run !== importId) return;
     const input = parseCollection(csv);
     importStatus.textContent = `Checking cards in ${selected.name}…`;
-    catalog ??= Promise.all([readGzipJson("/collection/catalog.json.gz"), readGzipJson("/data/tokens.json.gz")])
+    catalog ??= Promise.all([readGzipJson("/Lattice-MTG/collection/catalog.json.gz"), readGzipJson("/Lattice-MTG/data/tokens.json.gz")])
       .then(([snapshot, tokens]) => ({...snapshot, cards: [...snapshot.cards, ...tokens]}))
       .catch(error => { catalog = undefined; throw error; });
     const snapshot = await catalog;
