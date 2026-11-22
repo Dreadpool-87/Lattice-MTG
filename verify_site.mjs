@@ -57,11 +57,17 @@ const expected = json("lookup/integrity/li.json").files[boltFile].sha256;
 assert.equal(createHash("sha256").update(read(`lookup/${boltFile}`)).digest("hex"), expected);
 
 const index = read("index.html");
-for (const route of ["cards/", "collection/", "lookup/", "sets/", "updates/"]) {
+for (const route of ["cards/", "collection/", "lookup/", "updates/"]) {
   const href = `${basePath}/${route}`;
   assert.ok(index.includes(`href="${href}"`), `Missing homepage link ${href}`);
   resolveLink(href, "index.html");
 }
+assert.ok(!index.includes(`href="${basePath}/sets/"`), "Browse by set belongs in the card catalog");
+const catalog = read("cards/index.html");
+const setLink = catalog.match(/<a href="([^"]+)" class="start-option catalog-set-link">/);
+assert.ok(setLink, "Missing Browse by set tile in the card catalog");
+assert.equal(resolveLink(setLink[1], "cards/index.html"), "sets/index.html");
+assert.doesNotMatch(catalog, />\s*(Lightning Bolt|Blood Crypt|Splinter Twin)<\/a>/);
 for (const route of ["browse/", "../data/tokens.json.gz", "../sets/", "../data/rulings/meta.json"]) {
   assert.ok(read("lookup/index.html").includes(`href="${route}"`));
   resolveLink(route, "lookup/index.html");
