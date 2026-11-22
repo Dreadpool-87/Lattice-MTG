@@ -68,9 +68,36 @@ const setLink = catalog.match(/<a href="([^"]+)" class="start-option catalog-set
 assert.ok(setLink, "Missing Browse by set tile in the card catalog");
 assert.equal(resolveLink(setLink[1], "cards/index.html"), "sets/index.html");
 assert.doesNotMatch(catalog, />\s*(Lightning Bolt|Blood Crypt|Splinter Twin)<\/a>/);
-for (const route of ["browse/", "../data/tokens.json.gz", "../sets/", "../data/rulings/meta.json"]) {
+for (const route of ["browse/", "parts/", "../data/tokens.json.gz", "../sets/", "../data/rulings/meta.json"]) {
   assert.ok(read("lookup/index.html").includes(`href="${route}"`));
   resolveLink(route, "lookup/index.html");
+}
+
+const partsIndex = "lookup/parts/index.html";
+const partsGuide = read(partsIndex);
+assert.equal(resolveLink("se.html#seedsuture", partsIndex), "lookup/parts/se.html");
+assert.ok(partsGuide.includes('href="se.html#seedsuture"'));
+for (const [prefix, key, name, label, expectedCards] of [
+  ["se", "seedsuture", "Seed Suture", "Prepare spell", [
+    "Blossom-Blessed Angel // Seed Suture",
+    "Emergency Phytomedic // Seed Suture",
+    "Vigorbloom Vanguard // Seed Suture",
+  ]],
+  ["pe", "pettytheft", "Petty Theft", "Adventure", ["Brazen Borrower // Petty Theft"]],
+  ["in", "insectileaberration", "Insectile Aberration", "Card face",
+    ["Delver of Secrets // Insectile Aberration"]],
+]) {
+  const page = `lookup/parts/${prefix}.html`;
+  const section = read(page).split(`<section id="${key}">`)[1]?.split("</section>")[0];
+  assert.ok(section?.includes(`<h2>${name}</h2>`), `Missing card part ${name}`);
+  const matches = Array.from(section.matchAll(/<li><a href="([^"]+)">([^<]+)<\/a> · ([^<]+) · <code>([^<]+)<\/code><\/li>/g));
+  for (const cardName of expectedCards) {
+    const [, href, , , id] = matches.find(match => match[2] === cardName && match[3] === label) ?? [];
+    assert.ok(href, `Missing ${label} link for ${cardName}`);
+    const card = json(resolveLink(href, page)).cards.find(record => record.oracleId === id);
+    assert.equal(card?.name, cardName);
+    assert.ok(card.faces.some(face => face.name === name));
+  }
 }
 
 const homepageBrand = index.match(/<a [^>]*class="brand"[^>]*>.*?<\/a>/)?.[0];
