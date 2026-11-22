@@ -81,6 +81,70 @@ def document(title, body, css):
 """
 
 
+def build_card_part_index(output):
+    manifest = json.loads((output/"manifest.json").read_bytes())
+    groups = defaultdict(lambda: defaultdict(lambda: defaultdict(set)))
+    seen = set()
+    spell_labels = {"prepare": "Prepare spell", "adventure": "Adventure", "omen": "Omen"}
+    for filename in manifest["files"]:
+        payload = json.loads((output/filename).read_bytes())
+        for card in payload.get("cards", []):
+            name, oracle_id = card["name"], card["oracleId"]
+            if oracle_id in seen:
+                raise ValueError(f"Duplicate lookup record for {oracle_id}")
+            seen.add(oracle_id)
+            for position, face in enumerate(card["faces"]):
+                part = face["name"]
+                if not part or part == name:
+                    continue
+                slug = key(part)
+                label = spell_labels.get(card["layout"], "Card face") if position else "Card face"
+                groups[slug[:2]][slug][part].add((name, oracle_id, filename, label))
+
+    if len(seen) != manifest["oracleIds"]:
+        raise ValueError("Card-part index did not read the full lookup catalog")
+
+    index = output/"parts"
+    index.mkdir(exist_ok=True)
+    links = []
+    for prefix, slugs in sorted(groups.items()):
+        links.append(f'<a href="{prefix}.html">{prefix.upper()}</a>')
+        sections = []
+        for slug, parts in sorted(slugs.items()):
+            matches = []
+            for part, records in sorted(parts.items()):
+                entries = "".join(
+                    f'<li><a href="../{file}">{escape(name)}</a> · {label} · <code>{escape(oid)}</code></li>'
+                    for name, oid, file, label in sorted(records, key=lambda row: (row[0].casefold(), row[1]))
+                )
+                matches.append(f'<h2>{escape(part)}</h2><ul>{entries}</ul>')
+            sections.append(f'<section id="{slug}">{"".join(matches)}</section>')
+        body = '<p><a href="./">All card-part prefixes</a> · <a href="../">Compact lookup</a></p>'
+        (index/f"{prefix}.html").write_text(
+            document(f"Card parts · {prefix.upper()}", body + "\n".join(sections), "../../styles.css"),
+            encoding="utf-8",
+        )
+
+    body = (
+        '<p><a href="../">Compact lookup</a></p>'
+        '<p>Find a named card face, Prepare spell, Adventure, or other named card part. '
+        'Normalize the part name the same way as a full card name and follow its first two characters '
+        '(or one for a one-character name). Each match links to the full card record. '
+        'Use the Oracle ID shown to select the record in the JSON file. '
+        'A Prepare spell shares the Oracle ID of the card that can prepare it.</p>'
+    )
+    if "Seed Suture" in groups.get("se", {}).get("seedsuture", {}):
+        body += '<p>Example: <a href="se.html#seedsuture">Seed Suture</a>.</p>'
+    navigation = '<nav class="alphabet" aria-label="Card-part prefixes">' + "\n".join(links) + "</nav>"
+    (index/"index.html").write_text(
+        document("Browse by card part", body + navigation, "../../styles.css"),
+        encoding="utf-8",
+    )
+    for page in index.glob("*.html"):
+        if re.fullmatch(r"[a-z0-9]{1,2}", page.stem) and page.stem not in groups:
+            page.unlink()
+
+
 def build_guides(output, files, buckets, date):
     integrity = output/"integrity"
     browse = output/"browse"
@@ -240,6 +304,7 @@ def write_lookup_index(output, count, snapshot, source_url, bolt_prefix, bolt_fi
 <h1>Compact card lookup</h1>
 <p>{count:,} Oracle IDs from the {date} snapshot. Plain JSON, with at most {LIMIT} card records per data response.</p>
 <p id="site-data-snapshots"></p>
+<p><a href="parts/">Browse by card part</a> if you know the name of a Prepare spell, Adventure, or card face.</p>
 <ol>
 <li>Take the full card name. Apply Unicode NFKD, lowercase, and keep only a–z and 0–9. Lightning Bolt becomes <code>lightningbolt</code>. If nothing remains, use <code>other</code> as the full key.</li>
 <li>Fetch its first four characters, or the entire key if shorter, followed by <code>.json</code>. For Lightning Bolt, open <a href="{bolt_prefix}"><code>{bolt_prefix}</code></a>.</li>
