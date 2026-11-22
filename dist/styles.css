@@ -143,8 +143,21 @@ summary{cursor:pointer;color:var(--muted)}details .tags{margin-top:.55rem}
 .brandrow .admin-link{display:inline-flex;align-items:center;min-height:44px;padding-inline:.35rem;color:var(--muted)}
 .brandrow .admin-link:hover{color:var(--accent)}
 
-.brandrow{flex-wrap:wrap;column-gap:.8rem;row-gap:.25rem;padding-block:.5rem}
-.brandrow .theme-select{margin-inline-start:auto;min-height:44px;padding:.35rem .5rem}
+.brandrow{position:relative;flex-wrap:wrap;column-gap:.8rem;row-gap:.25rem;padding-block:.5rem}
+.theme-picker{margin-inline-start:auto}
+.theme-picker summary,.theme-options button{
+  display:grid;place-items:center;width:44px;height:44px;padding:0;border:1px solid transparent;border-radius:8px
+}
+.theme-picker summary{list-style:none;background:var(--surface);border-color:var(--line)}
+.theme-picker summary::-webkit-details-marker{display:none}
+.theme-picker[open] summary,.theme-picker summary:hover,.theme-options button[aria-pressed="true"]{
+  border-color:var(--accent)
+}
+.theme-options{
+  position:absolute;z-index:2;inset-block-start:100%;inset-inline-end:clamp(1rem,4vw,2.75rem);
+  display:flex;gap:2px;padding:4px;background:var(--panel);border:1px solid var(--line);border-radius:10px
+}
+.theme-options button{background:transparent}
 @supports (mask: url("./lattice-spark.svg")) {
   :root[data-theme]:not([data-theme="green"]) .brand img{display:none}
   :root[data-theme]:not([data-theme="green"]) .brand::before{
