@@ -8,8 +8,10 @@ const el = id => document.getElementById(id);
 const format = new Intl.NumberFormat("en");
 const pageSize = 30;
 const sessionKey = "lattice.collection.v1";
+const viewKey = "lattice.collection.view.v1";
 const file = el("csv-file");
 const filterSelects = Array.from(el("collection-filters").querySelectorAll("select"));
+const viewControls = [el("filter"), el("sort-order"), ...filterSelects];
 let catalog, sqlite, collection, groups = [], cards, page = 0, importId = 0, filename, retrySource;
 let foilColumn = -1;
 
@@ -287,6 +289,7 @@ function render() {
   el("reset-filters").disabled = !active && !search;
   const copies = found.reduce((sum, group) => sum + group.quantity, 0);
   el("filter-results").textContent = `${format.format(found.length)} card ${found.length === 1 ? "group" : "groups"} · ${format.format(copies)} ${copies === 1 ? "copy" : "copies"}`;
+  page = Math.min(page, Math.max(0, Math.ceil(found.length / pageSize) - 1));
   const start = page * pageSize;
   const visible = found.slice(start, start + pageSize);
   el("cards").replaceChildren(...(visible.length ? visible.map(rowDetails) :
@@ -295,6 +298,7 @@ function render() {
   el("page").textContent = `${start + 1}–${Math.min(start + pageSize, found.length)} of ${format.format(found.length)}`;
   el("previous").disabled = page === 0;
   el("next").disabled = start + pageSize >= found.length;
+  saveCollectionView();
 }
 
 function resetFilters() {
@@ -311,6 +315,7 @@ const sessionStatus = el("session-status");
 function removeSavedCollection() {
   try {
     sessionStorage.removeItem(sessionKey);
+    sessionStorage.removeItem(viewKey);
     return true;
   } catch {
     return false;
@@ -324,6 +329,32 @@ function saveCollection(name, csv) {
   } catch {
     removeSavedCollection();
     return false;
+  }
+}
+
+function saveCollectionView() {
+  try {
+    const values = Object.fromEntries(viewControls.map(control => [control.id, control.value]));
+    sessionStorage.setItem(viewKey, JSON.stringify({values, page}));
+  } catch {
+    // Filtering still works when this tab cannot save its state.
+  }
+}
+
+function restoreCollectionView() {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(viewKey));
+    if (!saved) return;
+    for (const control of viewControls) {
+      const value = saved.values?.[control.id];
+      if (typeof value !== "string" || control.closest("label[hidden]")) continue;
+      if (!control.options || Array.from(control.options).some(option => option.value === value)) {
+        control.value = value;
+      }
+    }
+    if (Number.isInteger(saved.page) && saved.page >= 0) page = saved.page;
+  } catch {
+    // The collection can still be restored with the default filters.
   }
 }
 
@@ -356,6 +387,7 @@ async function importCollection(selected, restoring = false) {
     populateFilters(printing);
     resetFilters();
     el("sort-order").value = "";
+    if (restoring) restoreCollectionView();
     const {rows, copies} = collection.summary;
     const confirmed = collection.items.reduce((count, item) => count + (item.status === "matched" ? item.quantity : 0), 0);
     el("summary").textContent = `${format.format(confirmed)} confirmed deck copies · ${format.format(copies)} submitted copies · ${format.format(rows)} rows`;
