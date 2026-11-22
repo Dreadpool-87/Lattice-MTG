@@ -81,10 +81,11 @@ export function parseCollection(text) {
       if (fields.length !== first.length || !cardName || !Number.isSafeInteger(copies) || copies < 1) {
         throw new Error(`CSV record ${row} needs a card name, a positive whole quantity, and ${first.length} fields.`);
       }
+      const setCode = (fields[set] ?? "").trim().replace(/^\(\s*([a-z0-9]+)\s*\)$/i, "$1");
       items.push({
         row, name: cardName, quantity: copies,
         ...(edition >= 0 && {editionName: (fields[edition] ?? "").trim()}),
-        setCode: (fields[set] ?? "").trim(),
+        setCode,
         collectorNumber: (fields[collector] ?? "").trim(),
         printingId: (fields[printing] ?? "").trim().toLowerCase(),
         oracleId: (fields[oracle] ?? "").trim().toLowerCase(),
