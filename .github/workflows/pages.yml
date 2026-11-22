@@ -8,7 +8,6 @@ on:
   schedule:
     - cron: '15 5 * * 0'
     - cron: '15 6 * * 0'
-    - cron: '19 8 22 11 *' # Catch up on the missed Sunday refresh
   workflow_dispatch:
     inputs:
       refresh_data:
@@ -46,8 +45,6 @@ jobs:
           planned = datetime.combine(sunday, time(int(hour), int(minute)), timezone.utc)
           brussels = planned.astimezone(ZoneInfo("Europe/Brussels"))
           refresh = (brussels.hour, brussels.minute) == (7, 15)
-          if environ["SCHEDULE_CRON"] == "19 8 22 11 *":
-              refresh = today.isoformat() == "2026-11-22"
 
           print(f"Scheduled time in Brussels: {brussels.isoformat()}")
           with open(environ["GITHUB_OUTPUT"], "a") as output:
