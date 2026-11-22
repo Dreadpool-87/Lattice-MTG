@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gunzipSync } from "node:zlib";
@@ -67,10 +67,18 @@ for (const route of ["browse/", "../data/tokens.json.gz", "../sets/", "../data/r
   resolveLink(route, "lookup/index.html");
 }
 
+const homepageBrand = index.match(/<a [^>]*class="brand"[^>]*>.*?<\/a>/)?.[0];
+assert.ok(homepageBrand, "Missing branded homepage link");
+for (const path of readdirSync(dist, {recursive: true}).filter(path => path.endsWith(".html"))) {
+  const header = read(path).match(/<header class="sitebar">[\s\S]*?<\/header>/)?.[0];
+  assert.ok(header?.includes(homepageBrand), `Missing shared Lattice header in ${path}`);
+}
+
 const updates = read("updates/index.html");
 const adminUrl = 'href="https://lattice-mtg-admin.dreadpool.workers.dev/"';
 assert.ok(!index.includes(adminUrl), "Admin link should stay off the homepage");
-assert.ok(updates.includes(adminUrl), "Data updates should link to the protected admin page");
+assert.ok(updates.match(/<header class="sitebar">[\s\S]*?<\/header>/)?.[0].includes(adminUrl),
+  "Data updates should link to the protected admin page from the header");
 assert.ok(updates.includes('href="history.json"'));
 resolveLink("history.json", "updates/index.html");
 const history = json("updates/history.json");
