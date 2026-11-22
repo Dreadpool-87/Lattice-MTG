@@ -21,8 +21,25 @@ function githubHeaders(token) {
   };
 }
 
-async function lastPublishedUpdate(token) {
-  if (!token) return "Unavailable";
+function runDetails(run, timestamp) {
+  const time = Date.parse(timestamp);
+  const label = Number.isFinite(time) ? updateClock.format(time) + " Belgian time" : "View run";
+  return '<a href="' + repository + '/actions/runs/' + run.id + '">' +
+    label + '</a> · ' + workflowSources[run.event];
+}
+
+function checkResult(run, published) {
+  if (run.status !== "completed") {
+    return run.status === "in_progress" ? "In progress" : "Queued";
+  }
+  if (run.conclusion === "cancelled") return "Cancelled";
+  if (run.conclusion !== "success") return "Failed";
+  return published ? "New data published" : "No changes";
+}
+
+async function updateHistory(token) {
+  const unavailable = { lastCheck: "Unavailable", lastUpdate: "Unavailable" };
+  if (!token) return unavailable;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 8_000);
   const options = { headers: githubHeaders(token), redirect: "manual", signal: controller.signal };
@@ -32,9 +49,11 @@ async function lastPublishedUpdate(token) {
     return response.json();
   };
 
+  let lastCheck;
+  let lastUpdate;
   try {
     const groups = await Promise.all(Object.keys(workflowSources).map(async (event) => {
-      const data = await get(workflow + "/runs?branch=main&status=success&per_page=15&event=" + event);
+      const data = await get(workflow + "/runs?branch=main&per_page=15&event=" + event);
       return data.workflow_runs;
     }));
     const runs = groups.flat().sort((a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at));
@@ -42,23 +61,32 @@ async function lastPublishedUpdate(token) {
     for (const run of runs) {
       if (!Number.isSafeInteger(run.id) || run.id < 1 || !Object.hasOwn(workflowSources, run.event)) continue;
       const { jobs } = await get(jobsBase + run.id + "/jobs");
-      if (!jobs.some(job => job.name === "refresh" && job.conclusion === "success")) continue;
-      const published = jobs.find(job => job.name === "deploy" && job.conclusion === "success");
-      if (!published) continue;
-      const time = Date.parse(published.completed_at);
-      if (!Number.isFinite(time)) return "Unavailable";
-      return '<a href="' + repository + '/actions/runs/' + run.id + '">' +
-        updateClock.format(time) + '</a> Belgian time · ' + workflowSources[run.event];
+      const refresh = jobs.find(job => job.name === "refresh");
+      if (refresh?.conclusion === "skipped") continue;
+      if (!refresh && run.status === "completed" && run.event === "workflow_dispatch") continue;
+      const published = refresh?.conclusion === "success" &&
+        jobs.find(job => job.name === "deploy" && job.conclusion === "success");
+      if (!lastCheck) {
+        const time = run.status === "completed" ? run.updated_at : run.run_started_at ?? run.created_at;
+        lastCheck = runDetails(run, time) + " · " + checkResult(run, published);
+      }
+      if (published) {
+        lastUpdate = runDetails(run, published.completed_at);
+        break;
+      }
     }
-    return "No data publication found in recent runs";
+    return {
+      lastCheck: lastCheck ?? "No data check found in recent runs",
+      lastUpdate: lastUpdate ?? "No data publication found in recent runs",
+    };
   } catch {
-    return "Temporarily unavailable";
+    return { lastCheck: lastCheck ?? "Temporarily unavailable", lastUpdate: lastUpdate ?? "Temporarily unavailable" };
   } finally {
     clearTimeout(timeout);
   }
 }
 
-function page(message, { status = 200, runId, canStart = false, lastUpdate } = {}) {
+function page(message, { status = 200, runId, canStart = false, lastCheck, lastUpdate } = {}) {
   const nonce = crypto.randomUUID();
   const runLink = runId
     ? '<p><a href="' + repository + '/actions/runs/' + runId + '">View workflow run</a></p>'
@@ -74,7 +102,8 @@ function page(message, { status = 200, runId, canStart = false, lastUpdate } = {
     'main{max-width:36rem;margin:12vh auto;padding:0 1rem}' +
     'button{font:inherit;padding:.75rem 1.25rem}</style>' +
     '<main><h1>Lattice MTG Admin</h1><p>' + message + '</p>' +
-    form + (lastUpdate ? '<p>Last published update: ' + lastUpdate + '</p>' : '') + runLink + '</main>' +
+    form + (lastCheck ? '<p>Last data check: ' + lastCheck + '</p>' : '') +
+    (lastUpdate ? '<p>Last published update: ' + lastUpdate + '</p>' : '') + runLink + '</main>' +
     '<script nonce="' + nonce + '">document.querySelector("form")?.addEventListener("submit", ' +
     'event => {const button=event.currentTarget.querySelector("button");' +
     'button.disabled=true;button.textContent="Starting…";});</script></html>',
@@ -110,7 +139,7 @@ export default {
       }
       return page("Start a refresh of the Scryfall card data, sets, and rulings.", {
         canStart: true,
-        lastUpdate: await lastPublishedUpdate(env.GITHUB_ACTIONS_TOKEN?.trim()),
+        ...await updateHistory(env.GITHUB_ACTIONS_TOKEN?.trim()),
       });
     }
     if (request.method !== "POST" || url.pathname !== "/refresh") {
