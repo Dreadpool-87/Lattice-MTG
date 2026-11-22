@@ -1,6 +1,7 @@
 [
   {
     "recordedAt": "2026-11-22T20:46:02+00:00",
+    "note": "Updated produced mana and related-card data for 7,988 card records. Oracle text stayed the same.",
     "changes": {
       "oracle": {
         "added": 0,
