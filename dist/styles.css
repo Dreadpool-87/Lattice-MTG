@@ -106,3 +106,6 @@ summary{cursor:pointer;color:var(--muted)}details .tags{margin-top:.55rem}
 .update-counts{border-collapse:collapse;font-variant-numeric:tabular-nums}
 .update-counts th,.update-counts td{padding:.45rem clamp(.2rem,2vw,.85rem);border-bottom:1px solid var(--line);text-align:right}
 .update-counts th:first-child{text-align:left;padding-left:0}
+
+.brandrow .admin-link{display:inline-flex;align-items:center;min-height:44px;padding-inline:.35rem;color:var(--muted)}
+.brandrow .admin-link:hover{color:var(--accent)}
