@@ -10,6 +10,8 @@ CATALOG_LINK = re.compile(r'(href="(?:letter-|p-)[a-z0-9-]+)(?=[#"])')
 MODULE_PATH = re.compile(r"""(["'`])/(?=data/|collection/|\?)""")
 STYLE_LINK = re.compile(r'(href="[^"?]*/(styles\.css|collection/collection\.css))(?:\?v=[0-9a-f]+)?(?=")')
 THEME_SCRIPT = re.compile(r'<script src="[^"?]*/theme\.js(?:\?v=[0-9a-f]+)?"></script>')
+COLLECTION_PAGE = re.compile(r'(src="[^"?]*/collection/page\.mjs)(?:\?v=[0-9a-f]+)?(?=")')
+COLLECTION_IMPORT = re.compile(r'"\./collection\.mjs(?:\?v=[0-9a-f]+)?"')
 FAVICON = '<link rel="icon" type="image/svg+xml" href="/lattice-spark.svg">'
 BRAND_LINK = re.compile(r'<a [^>]*class="brand"[^>]*>.*?</a>')
 BODY_TAG = re.compile(r"<body(?:\s[^>]*)?>")
@@ -47,6 +49,18 @@ def prepare(base_path):
     }
     theme_version = sha256((ROOT / "theme.js").read_bytes()).hexdigest()[:12]
     theme_script = f'<script src="/theme.js?v={theme_version}"></script>'
+    collection = ROOT / "collection"
+
+    for module in ("app.mjs", "printings.mjs", "collection/page.mjs"):
+        path = ROOT / module
+        original = path.read_text(encoding="utf-8")
+        javascript = MODULE_PATH.sub(lambda match: match[1] + prefix, original)
+        if path.parent == collection:
+            version = sha256((collection / "collection.mjs").read_bytes()).hexdigest()[:12]
+            javascript = COLLECTION_IMPORT.sub(f'"./collection.mjs?v={version}"', javascript)
+        if javascript != original:
+            path.write_text(javascript, encoding="utf-8")
+    collection_page_version = sha256((collection / "page.mjs").read_bytes()).hexdigest()[:12]
 
     home = (ROOT / "index.html").read_text(encoding="utf-8")
     brand = BRAND_LINK.search(home).group()
@@ -56,6 +70,8 @@ def prepare(base_path):
         original = page.read_text(encoding="utf-8")
         branded = with_site_header(original, brand, show_admin=page == updates)
         branded = STYLE_LINK.sub(lambda match: f"{match[1]}?v={style_versions[match[2]]}", branded)
+        if page == collection / "index.html":
+            branded = COLLECTION_PAGE.sub(lambda match: f"{match[1]}?v={collection_page_version}", branded)
         if THEME_SCRIPT.search(branded):
             branded = THEME_SCRIPT.sub(theme_script, branded, count=1)
         else:
@@ -71,13 +87,6 @@ def prepare(base_path):
             html = CATALOG_LINK.sub(r"\1.html", html)
         if html != original:
             page.write_text(html, encoding="utf-8")
-
-    for module in ("app.mjs", "printings.mjs", "collection/page.mjs"):
-        path = ROOT / module
-        original = path.read_text(encoding="utf-8")
-        javascript = MODULE_PATH.sub(lambda match: match[1] + prefix, original)
-        if javascript != original:
-            path.write_text(javascript, encoding="utf-8")
 
 
 if __name__ == "__main__":

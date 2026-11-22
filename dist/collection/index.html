@@ -37,9 +37,17 @@
       <div class="collection-summary">
         <div><h2 id="collection-heading">Imported cards</h2><p id="summary" class="hint"></p><p id="snapshot" class="hint"></p><p id="printing-summary" class="hint"></p></div>
         <div class="download-actions">
-          <button type="button" id="text" class="primary">Export text</button>
-          <button type="button" id="json">Export JSON</button>
-          <button type="button" id="sqlite">Export SQLite</button>
+          <label for="export-format" class="sr">Export format</label>
+          <select id="export-format">
+            <option value="txt">Plain text (.txt)</option>
+            <option value="md">Markdown (.md)</option>
+            <option value="tsv">Card index (.tsv)</option>
+            <option value="html">Web page (.html)</option>
+            <option value="json">JSON (.json)</option>
+            <option value="jsonl">JSON Lines (.jsonl)</option>
+            <option value="sqlite">SQLite (.sqlite)</option>
+          </select>
+          <button type="button" id="download-collection" class="primary">Download</button>
           <p id="export-status" class="hint" role="status"></p>
         </div>
       </div>

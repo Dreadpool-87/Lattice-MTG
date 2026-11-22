@@ -7,7 +7,9 @@
 .import-actions:not(:has(> :not([hidden]))){display:none}
 .import-status:empty,#export-status:empty{display:none}
 .collection-summary{display:flex;align-items:start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin:1.65rem 0 1rem}
-.download-actions{display:flex;align-items:center;gap:.55rem;flex-wrap:wrap}
+.download-actions{display:flex;align-items:center;gap:.55rem;flex-wrap:wrap;max-width:100%}
+.download-actions select,.download-actions button{min-height:44px;max-width:100%}
+#export-status{flex-basis:100%}
 .collection-filters{align-items:center;flex-wrap:wrap}
 .collection-filters input{flex:1;min-width:min(100%,16rem)}
 .collection-filters select{max-width:100%}

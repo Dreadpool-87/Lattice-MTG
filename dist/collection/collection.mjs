@@ -161,7 +161,7 @@ export function matchCollection(input, catalog, printingIndex) {
   };
 }
 
-export function exportText(collection) {
+function deckInventory(collection) {
   const counts = new Map();
   const review = [];
   const tokens = [];
@@ -177,6 +177,19 @@ export function exportText(collection) {
     }
   }
   const copies = [...counts.values()].reduce((sum, value) => sum + value, 0);
+  const cards = collection.cards.filter(card => counts.has(card.oracleId))
+    .sort((a, b) => a.name.localeCompare(b.name, "en"));
+  return {counts, copies, cards, tokens, review};
+}
+
+function faceDetails(face) {
+  return [face.type, face.manaCost, face.power != null ? `${face.power}/${face.toughness}` : null,
+    face.loyalty != null ? `Loyalty ${face.loyalty}` : null,
+    face.defense != null ? `Defense ${face.defense}` : null].filter(Boolean).join(" · ");
+}
+
+export function exportText(collection) {
+  const {counts, copies, cards, tokens, review} = deckInventory(collection);
   const lines = [
     "Lattice MTG collection",
     `Source: ${collection.source} (${collection.snapshot})`,
@@ -185,23 +198,140 @@ export function exportText(collection) {
     "A matched Oracle identity can be listed without verified printing details.",
     "Unofficial Magic: The Gathering fan content. Portions © Wizards of the Coast.",
   ];
-  for (const card of collection.cards.filter(card => counts.has(card.oracleId))
-    .sort((a, b) => a.name.localeCompare(b.name, "en"))) {
+  for (const card of cards) {
     lines.push("", `=== ${card.name} ===`, `Copies: ${counts.get(card.oracleId)}`, `Oracle ID: ${card.oracleId}`,
       `Layout: ${card.layout}`);
     if (card.catalogManaValue != null) lines.push(`Mana value: ${card.catalogManaValue}`);
     if (card.colorIdentity) lines.push(`Color identity: ${card.colorIdentity.join("") || "colorless"}`);
     for (const face of card.faces) {
       if (card.faces.length > 1) lines.push(`Part: ${face.name}`);
-      lines.push([face.type, face.manaCost, face.power != null ? `${face.power}/${face.toughness}` : null,
-        face.loyalty != null ? `Loyalty ${face.loyalty}` : null,
-        face.defense != null ? `Defense ${face.defense}` : null].filter(Boolean).join(" · "));
+      lines.push(faceDetails(face));
       if (face.oracleText) lines.push(face.oracleText);
     }
   }
   if (tokens.length) lines.push("", "Tokens and emblems outside the deck inventory", ...tokens);
   if (review.length) lines.push("", "Rows outside the deck inventory pending review", ...review);
   return lines.join("\n") + "\n";
+}
+
+const cardTypes = [
+  ["Creature", "Creatures"], ["Planeswalker", "Planeswalkers"], ["Battle", "Battles"],
+  ["Instant", "Instants"], ["Sorcery", "Sorceries"], ["Artifact", "Artifacts"],
+  ["Enchantment", "Enchantments"], ["Land", "Lands"],
+];
+const typeWords = face => face.type.split(" — ", 1)[0].split(" ");
+const colorIdentity = card => card.colorIdentity?.join("") || "Colorless";
+const tokenHeading = "Tokens and emblems outside the deck inventory";
+const reviewHeading = "Rows outside the deck inventory pending review";
+const credit = "Unofficial Magic: The Gathering fan content. Portions © Wizards of the Coast.";
+
+function groupByType(cards) {
+  const groups = new Map([...cardTypes.map(([, title]) => [title, []]), ["Other cards", []]]);
+  for (const card of cards) {
+    const types = typeWords(card.faces[0]);
+    const title = cardTypes.find(([type]) => types.includes(type))?.[1] ?? "Other cards";
+    groups.get(title).push(card);
+  }
+  for (const group of groups.values()) {
+    group.sort((a, b) => (a.catalogManaValue ?? Infinity) - (b.catalogManaValue ?? Infinity));
+  }
+  return [...groups].filter(([, group]) => group.length);
+}
+
+const escapeHtml = value => String(value).replace(/[&<>"']/g,
+  char => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"})[char]);
+const escapeMarkdown = value => String(value).replace(/[\\`*_{}\[\]()#+!|~]/g, "\\$&")
+  .replace(/[&<>]/g, escapeHtml);
+
+export function exportMarkdown(collection) {
+  const {counts, copies, cards, tokens, review} = deckInventory(collection);
+  const lines = [
+    "# Lattice MTG collection", "",
+    `Deck inventory: ${cards.length} Oracle identities · ${copies} copies.`,
+    `Oracle snapshot: ${escapeMarkdown(collection.snapshot)} · ${escapeMarkdown(collection.source)}`,
+    "Cards are grouped by the first card part and counted once.", "",
+  ];
+  for (const [title, group] of groupByType(cards)) {
+    lines.push(`## ${title}`, "");
+    for (const card of group) {
+      lines.push(`### ${escapeMarkdown(card.name)}`, "",
+        `Copies: ${counts.get(card.oracleId)} · Oracle ID: \`${card.oracleId}\` · Color identity: ${colorIdentity(card)}`, "");
+      for (const face of card.faces) {
+        if (card.faces.length > 1) lines.push(`**${escapeMarkdown(face.name)}**`, "");
+        lines.push(escapeMarkdown(faceDetails(face)), "");
+        if (face.oracleText) {
+          lines.push(face.oracleText.split(/\r?\n/).map(line => `> ${escapeMarkdown(line)}`).join("  \n"), "");
+        }
+      }
+    }
+  }
+  for (const [title, rows] of [[tokenHeading, tokens], [reviewHeading, review]]) {
+    if (rows.length) lines.push(`## ${title}`, "", ...rows.map(row => `- ${escapeMarkdown(row)}`), "");
+  }
+  return lines.join("\n") + credit + "\n";
+}
+
+export function exportTsv(collection) {
+  const {counts, cards} = deckInventory(collection);
+  const rows = [["Name", "Quantity", "Oracle ID", "Type lines", "Mana value", "Color identity"]];
+  for (const card of cards) {
+    rows.push([card.name, counts.get(card.oracleId), card.oracleId,
+      card.faces.map(face => face.type).join(" // "),
+      card.catalogManaValue ?? "", colorIdentity(card)]);
+  }
+  return rows.map(row => row.map(value => {
+    const text = String(value).replace(/[\t\r\n]/g, " ");
+    return text.includes('"') ? `"${text.replaceAll('"', '""')}"` : text;
+  }).join("\t")).join("\n") + "\n";
+}
+
+export function exportHtml(collection) {
+  const {counts, copies, cards, tokens, review} = deckInventory(collection);
+  const sections = groupByType(cards).map(([title, group]) => {
+    const entries = group.map(card => {
+      const faces = card.faces.map(face => `<section>
+${card.faces.length > 1 ? `<h4>${escapeHtml(face.name)}</h4>` : ""}
+<p>${escapeHtml(faceDetails(face))}</p>
+${face.oracleText ? `<p class="rules">${escapeHtml(face.oracleText)}</p>` : ""}
+</section>`).join("\n");
+      const legality = Object.entries(card.legality ?? {}).map(([status, formats]) =>
+        `<li>${escapeHtml(status.replaceAll("_", " "))}: ${escapeHtml(formats.join(", "))}</li>`).join("");
+      return `<article><h3>${escapeHtml(card.name)}</h3>
+<p>Copies: ${counts.get(card.oracleId)} · Oracle ID: <code>${escapeHtml(card.oracleId)}</code> · Color identity: ${escapeHtml(colorIdentity(card))}</p>
+${faces}
+${legality ? `<details><summary>Format legality</summary><ul>${legality}</ul></details>` : ""}
+</article>`;
+    }).join("\n");
+    return `<section><h2>${title}</h2>\n${entries}</section>`;
+  });
+  for (const [title, rows] of [[tokenHeading, tokens], [reviewHeading, review]]) {
+    if (rows.length) sections.push(`<section><h2>${title}</h2><ul>${
+      rows.map(row => `<li>${escapeHtml(row)}</li>`).join("")}</ul></section>`);
+  }
+  return `<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lattice MTG collection</title>
+<style>
+:root{color-scheme:light dark}
+body{font:1rem/1.55 system-ui,sans-serif;max-width:48rem;margin:2rem auto;padding:0 1rem;overflow-wrap:anywhere}
+article{border-block-start:1px solid GrayText;padding-block:.65rem}
+.rules{white-space:pre-wrap}summary{cursor:pointer}
+</style></head><body><main>
+<h1>Lattice MTG collection</h1>
+<p>Deck inventory: ${cards.length} Oracle identities · ${copies} copies.</p>
+<p>Oracle snapshot: ${escapeHtml(collection.snapshot)} · ${escapeHtml(collection.source)}</p>
+<p>Cards are grouped by the first card part and counted once.</p>
+${sections.join("\n")}
+<footer><p>${credit}</p></footer>
+</main></body></html>\n`;
+}
+
+export function exportJsonl(collection) {
+  const {items, cards, ...metadata} = collection;
+  const line = (type, data) => JSON.stringify({type, data}) + "\n";
+  return [line("collection", metadata), ...items.map(item => line("item", item)),
+    ...cards.map(card => line("card", card))];
 }
 
 export function exportSQLite(SQL, collection) {
