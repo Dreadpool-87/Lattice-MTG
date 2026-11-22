@@ -364,6 +364,30 @@ export function exportJsonl(collection) {
     ...cards.map(card => line("card", card))];
 }
 
+export function exportYaml(collection) {
+  // Keep quoted strings literal, including line separators and control characters.
+  const scalar = value => JSON.stringify(value).replace(/[\u007f-\u009f\u2028\u2029\ufeff\ufffe\uffff]/g,
+    char => "\\u" + char.charCodeAt(0).toString(16).padStart(4, "0"));
+  const lines = [];
+  function write(value, indent) {
+    const entries = Array.isArray(value)
+      ? value.map(item => ["-", item])
+      : Object.entries(value).map(([key, item]) => [scalar(key) + ":", item]);
+    for (const [label, item] of entries) {
+      if (item === undefined) continue;
+      const prefix = indent + label;
+      if (item !== null && typeof item === "object" && Object.keys(item).length) {
+        lines.push(prefix);
+        write(item, indent + "  ");
+      } else {
+        lines.push(prefix + " " + scalar(item));
+      }
+    }
+  }
+  write(collection, "");
+  return lines.join("\n") + "\n";
+}
+
 export function exportSQLite(SQL, collection) {
   const db = new SQL.Database();
   try {

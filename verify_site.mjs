@@ -87,7 +87,7 @@ const collectionScript = `${basePath}/collection/page.mjs?v=${assetVersion("coll
 assert.ok(collectionPage.includes(`href="${collectionStyle}"`));
 assert.ok(collectionPage.includes(`src="${collectionScript}"`));
 assert.ok(read("collection/page.mjs").includes(`"./collection.mjs?v=${assetVersion("collection/collection.mjs")}"`));
-for (const extension of ["txt", "json", "sqlite", "md", "tsv", "html", "jsonl"]) {
+for (const extension of ["txt", "json", "sqlite", "md", "tsv", "html", "jsonl", "yaml"]) {
   assert.ok(collectionPage.includes(`<option value="${extension}">`));
 }
 assert.equal(resolveLink(themeScript, "index.html"), "theme.js");

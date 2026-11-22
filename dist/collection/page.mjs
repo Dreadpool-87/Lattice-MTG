@@ -1,5 +1,5 @@
 import {
-  parseCollection, matchCollection, exportText, exportMarkdown, exportTsv, exportHtml, exportJsonl, exportSQLite, states,
+  parseCollection, matchCollection, exportText, exportMarkdown, exportTsv, exportHtml, exportJsonl, exportYaml, exportSQLite, states,
 } from "./collection.mjs";
 import {gathererPrintingUrl, gathererSearchUrl, loadPrintingIndex, nameKey, printingStates, readGzipJson, scryfallUrl} from "../printings.mjs";
 
@@ -396,6 +396,7 @@ const exportsByFormat = {
   html: ["text/html;charset=utf-8", exportHtml],
   json: ["application/json", JSON.stringify],
   jsonl: ["application/x-ndjson", exportJsonl],
+  yaml: ["application/yaml", exportYaml],
   sqlite: ["application/vnd.sqlite3", async current => exportSQLite(await loadSQLite(), current)],
 };
 const exportFormat = el("export-format");
