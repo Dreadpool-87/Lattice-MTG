@@ -7,6 +7,14 @@ A static Magic: The Gathering card explorer and collection import tool. Card inf
 - [Compact JSON lookup](https://dreadpool-87.github.io/Lattice-MTG/lookup/) documents the card name lookup routes, examples, and checksums.
 - [Collection](https://dreadpool-87.github.io/Lattice-MTG/collection/) imports CSV files with a card name, quantity, and Oracle ID or Scryfall ID in the browser.
 
+## Collection downloads
+
+Choose a format and select **Download**. The download uses the whole imported collection regardless of the current view filters.
+
+- **TXT, Markdown, HTML** provide readable inventories. Markdown and offline HTML group cards by the type of their first part and list tokens and rows needing review separately.
+- **TSV** is a compact index of confirmed, playable cards with one row per Oracle identity.
+- **JSON, JSON Lines, SQLite** retain imported rows, printing checks, and card records. The JSON Lines file is UTF-8 and starts with a `{"type":"collection","data":…}` metadata record, followed by `item` records in import order and `card` records for the linked Oracle identities.
+
 ## Set index
 
 [Browse sets](https://dreadpool-87.github.io/Lattice-MTG/sets/) by set code or name. Each set page links to its card entries and JSON file. In the [JSON set index](https://dreadpool-87.github.io/Lattice-MTG/sets/index.json), find the entry by set code and follow its `json` field relative to the index URL.

@@ -1,4 +1,6 @@
-import {parseCollection, matchCollection, exportText, exportSQLite, states} from "./collection.mjs";
+import {
+  parseCollection, matchCollection, exportText, exportMarkdown, exportTsv, exportHtml, exportJsonl, exportSQLite, states,
+} from "./collection.mjs";
 import {gathererPrintingUrl, gathererSearchUrl, loadPrintingIndex, nameKey, printingStates, readGzipJson, scryfallUrl} from "../printings.mjs";
 
 const el = id => document.getElementById(id);
@@ -377,7 +379,7 @@ retryImport.addEventListener("click", () => {
 });
 
 function download(bytes, suffix, type) {
-  const url = URL.createObjectURL(new Blob([bytes], {type}));
+  const url = URL.createObjectURL(new Blob(Array.isArray(bytes) ? bytes : [bytes], {type}));
   const anchor = node("a");
   anchor.href = url;
   anchor.download = filename + suffix;
@@ -387,30 +389,38 @@ function download(bytes, suffix, type) {
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
-el("text").addEventListener("click", () => {
-  if (!collection) return;
-  download(exportText(collection), ".txt", "text/plain;charset=utf-8");
-  el("export-status").textContent = "Text export ready.";
-});
-el("json").addEventListener("click", () => {
-  if (!collection) return;
-  download(JSON.stringify(collection), ".json", "application/json");
-  el("export-status").textContent = "JSON export ready.";
-});
-el("sqlite").addEventListener("click", async () => {
+const exportsByFormat = {
+  txt: ["text/plain;charset=utf-8", exportText],
+  md: ["text/markdown;charset=utf-8", exportMarkdown],
+  tsv: ["text/tab-separated-values;charset=utf-8", exportTsv],
+  html: ["text/html;charset=utf-8", exportHtml],
+  json: ["application/json", JSON.stringify],
+  jsonl: ["application/x-ndjson", exportJsonl],
+  sqlite: ["application/vnd.sqlite3", async current => exportSQLite(await loadSQLite(), current)],
+};
+const exportFormat = el("export-format");
+const downloadCollection = el("download-collection");
+const exportStatus = el("export-status");
+
+exportFormat.addEventListener("change", () => { exportStatus.textContent = ""; });
+downloadCollection.addEventListener("click", async () => {
   if (!collection) return;
   const current = collection;
-  el("sqlite").disabled = true;
-  el("export-status").textContent = "Preparing SQLite export…";
+  const extension = exportFormat.value;
+  const [type, serialize] = exportsByFormat[extension];
+  downloadCollection.disabled = true;
+  exportFormat.disabled = true;
+  exportStatus.textContent = `Preparing .${extension} export…`;
   try {
-    const SQL = await loadSQLite();
+    const bytes = await serialize(current);
     if (current !== collection) return;
-    download(exportSQLite(SQL, current), ".sqlite", "application/vnd.sqlite3");
-    el("export-status").textContent = "SQLite export ready.";
+    download(bytes, "." + extension, type);
+    exportStatus.textContent = `.${extension} export ready.`;
   } catch {
-    if (current === collection) el("export-status").textContent = "Could not export SQLite. Try again or use JSON.";
+    if (current === collection) exportStatus.textContent = `Could not export .${extension}. Try again.`;
   } finally {
-    el("sqlite").disabled = false;
+    downloadCollection.disabled = false;
+    exportFormat.disabled = false;
   }
 });
 el("filter").addEventListener("input", () => { page = 0; render(); });

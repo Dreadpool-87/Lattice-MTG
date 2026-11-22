@@ -4,7 +4,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gunzipSync } from "node:zlib";
-import { matchCollection, parseCollection } from "./dist/collection/collection.mjs";
+import { exportHtml, exportJsonl, exportMarkdown, exportTsv, matchCollection, parseCollection } from "./dist/collection/collection.mjs";
 import { makePrintingIndex } from "./dist/printings.mjs";
 
 const dist = fileURLToPath(new URL("./dist/", import.meta.url));
@@ -82,7 +82,14 @@ const assetVersion = path => createHash("sha256")
 const themeScript = `${basePath}/theme.js?v=${assetVersion("theme.js")}`;
 const styleVersion = assetVersion("styles.css");
 const collectionStyle = `${basePath}/collection/collection.css?v=${assetVersion("collection/collection.css")}`;
-assert.ok(read("collection/index.html").includes(`href="${collectionStyle}"`));
+const collectionPage = read("collection/index.html");
+const collectionScript = `${basePath}/collection/page.mjs?v=${assetVersion("collection/page.mjs")}`;
+assert.ok(collectionPage.includes(`href="${collectionStyle}"`));
+assert.ok(collectionPage.includes(`src="${collectionScript}"`));
+assert.ok(read("collection/page.mjs").includes(`"./collection.mjs?v=${assetVersion("collection/collection.mjs")}"`));
+for (const extension of ["txt", "json", "sqlite", "md", "tsv", "html", "jsonl"]) {
+  assert.ok(collectionPage.includes(`<option value="${extension}">`));
+}
 assert.equal(resolveLink(themeScript, "index.html"), "theme.js");
 for (const path of readdirSync(dist, {recursive: true}).filter(path => path.endsWith(".html"))) {
   const html = read(path);
@@ -159,4 +166,23 @@ assert.equal(collection.summary.copies, 3);
 assert.throws(() => parseCollection(`${header}\nLightning Bolt,0,${boltId}`), /positive whole quantity/);
 assert.throws(() => parseCollection("Name,Quantity\nLightning Bolt,2"), /an Oracle ID or Scryfall ID/);
 
-console.log("Verified Pages links, lookup fixtures, snapshots, checksum, and CSV import.");
+const exportInput = parseCollection(`${header}\nLightning Bolt,2,${boltId}\nTreasure,1,${treasure.oracleId}\n<script>,1,${boltId}`);
+const exportCollection = matchCollection(exportInput, {snapshot: sets.snapshot, source: "Scryfall", cards: [bolt, treasure]}, null);
+const {items, cards, ...metadata} = exportCollection;
+const jsonl = exportJsonl(exportCollection).join("").trimEnd().split("\n").map(line => JSON.parse(line));
+assert.deepEqual(jsonl, [
+  {type: "collection", data: metadata},
+  ...items.map(data => ({type: "item", data})),
+  ...cards.map(data => ({type: "card", data})),
+]);
+const indexRows = parseCollection(exportTsv(exportCollection)).items;
+assert.deepEqual(indexRows.map(row => [row.oracleId, row.quantity]), [[boltId, 2]]);
+assert.match(exportMarkdown(exportCollection), /## Instants\n\n### Lightning Bolt/);
+assert.match(exportMarkdown(exportCollection), /Tokens and emblems outside the deck inventory/);
+const offlineHtml = exportHtml(exportCollection);
+assert.match(offlineHtml, /<h3>Lightning Bolt<\/h3>/);
+assert.match(offlineHtml, /&lt;script&gt;/);
+assert.doesNotMatch(offlineHtml, /<script/);
+assert.match(offlineHtml, /Format legality/);
+
+console.log("Verified Pages links, lookup fixtures, snapshots, checksum, and collection import and exports.");
