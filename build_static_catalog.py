@@ -8,11 +8,6 @@ from pathlib import Path
 
 PAGE_SIZE = 16
 PREFIX_SUBGROUP_LIMIT = 8
-SAMPLES = {
-    "Lightning Bolt": "4457ed35-7c10-48c8-9776-456485fdf070",
-    "Blood Crypt": "43985bbc-a0f6-4812-984e-392bc8562633",
-    "Splinter Twin": "2df3187b-4b91-4de9-9b26-d48a30700cec",
-}
 
 
 def word_key(name):
@@ -181,18 +176,17 @@ def build(root):
             page(f"Card names starting with {letter.upper()}", render_letter(entries, split_names[letter])),
             encoding="utf-8",
         )
-    by_oracle = {oid: cid for _, cid, _, oid in (item for batch in pages.values() for item in batch)}
-    examples = " · ".join(link(links[by_oracle[oid]], name) for name, oid in SAMPLES.items())
     alphabet = " ".join(link(f"letter-{letter}.html", letter.upper()) for letter in sorted(letters))
-    bolt_shard = by_oracle[SAMPLES['Lightning Bolt']] // 128
     overview = f"""<p><a href="../lookup/">Compact JSON lookup</a> is the recommended route for agents looking up a card by name.</p>
 <p>{meta["cards"]:,} card records from the {escape(meta["snapshot"])} snapshot. Every linked card page contains the card text in its HTML response.</p>
-<p>{examples}</p>
-<p><a href="../sets/">Browse by set</a></p>
+<a href="../sets/" class="start-option catalog-set-link">
+  <span><strong>Browse by set</strong><small>Explore expansions and see the cards in each set.</small></span>
+  <span aria-hidden="true">→</span>
+</a>
 <h2>Browse by first letter</h2>
 <nav aria-label="Card name index" class="alphabet">{alphabet}</nav>
 <p>Follow the letter, prefix, and card range. A prefix link jumps to a section on the letter page. Check the exact card name and open every range listed for a shared name.</p>
-<p>For bulk or exact-ID lookup, <a href="../data/index.json">download the card index</a>. Each row contains the internal ID, name, Oracle ID, and card types. Divide the internal ID by 128 and round down to find the number in <code>data/cards-N.json</code>, then read that ID's record. For example, <a href="../data/cards-{bolt_shard}.json">shard {bolt_shard}</a> contains Lightning Bolt.</p>
+<p>For bulk or exact-ID lookup, <a href="../data/index.json">download the card index</a>. Each row contains the internal ID, name, Oracle ID, and card types. Divide the internal ID by 128 and round down to find the number in <code>data/cards-N.json</code>, then read that ID's record.</p>
 <p>Format statuses are from this snapshot, including explicit bans. Formats absent from the source are unreported.</p>"""
     (output/"index.html").write_text(page("Static card lookup", overview), encoding="utf-8")
     build_home(root, meta)
