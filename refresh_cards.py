@@ -10,7 +10,7 @@ from tempfile import TemporaryDirectory
 from urllib.request import Request, urlopen
 
 from build_rulings import USER_AGENT, fetch
-from build_scryfall import PRINTING_VARIANTS_VERSION, build
+from build_scryfall import DECK_DATA_VERSION, PRINTING_VARIANTS_VERSION, build
 
 
 BULK_URL = "https://api.scryfall.com/bulk-data"
@@ -71,7 +71,9 @@ def refresh():
         raise ValueError("Scryfall card exports are more than two days old")
     if min(dates).date().isoformat() < max(metadata["snapshot"], printings["snapshot"]):
         raise ValueError("Scryfall card exports are older than the pinned snapshot")
-    if (printings.get("variantsVersion") == PRINTING_VARIANTS_VERSION
+    current_schema = (printings.get("variantsVersion") == PRINTING_VARIANTS_VERSION
+                      and metadata.get("deckDataVersion") == DECK_DATA_VERSION)
+    if (current_schema
             and [entries[name]["jsonl_download_uri"] for name in TYPES] == [metadata["download"], printings["download"]]):
         print("The pinned card and printing exports are already current.")
         return
@@ -95,8 +97,7 @@ def refresh():
         for label, current, previous in counts:
             if current == 0 or current * 10 < previous * 9:
                 raise ValueError(f"Unexpected {label} count: {previous:,} to {current:,}")
-        if (printings.get("variantsVersion") == PRINTING_VARIANTS_VERSION
-                and content_fingerprint(candidate) == content_fingerprint(dist)):
+        if current_schema and content_fingerprint(candidate) == content_fingerprint(dist):
             print("Scryfall export versions changed, but the published card data is identical.")
             return
 
