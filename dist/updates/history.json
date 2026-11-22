@@ -1,0 +1,27 @@
+[
+  {
+    "recordedAt": "2026-11-22T00:01:46+00:00",
+    "changes": {
+      "oracle": {
+        "added": 56,
+        "changed": 2533,
+        "removed": 0
+      },
+      "printings": {
+        "added": 64,
+        "changed": 52,
+        "removed": 0
+      },
+      "sets": {
+        "added": 0,
+        "changed": 0,
+        "removed": 0
+      },
+      "rulings": {
+        "added": 0,
+        "changed": null,
+        "removed": 0
+      }
+    }
+  }
+]

@@ -57,7 +57,7 @@ const expected = json("lookup/integrity/li.json").files[boltFile].sha256;
 assert.equal(createHash("sha256").update(read(`lookup/${boltFile}`)).digest("hex"), expected);
 
 const index = read("index.html");
-for (const route of ["cards/", "collection/", "lookup/", "sets/"]) {
+for (const route of ["cards/", "collection/", "lookup/", "sets/", "updates/"]) {
   const href = `${basePath}/${route}`;
   assert.ok(index.includes(`href="${href}"`), `Missing homepage link ${href}`);
   resolveLink(href, "index.html");
@@ -65,6 +65,28 @@ for (const route of ["cards/", "collection/", "lookup/", "sets/"]) {
 for (const route of ["browse/", "../data/tokens.json.gz", "../sets/", "../data/rulings/meta.json"]) {
   assert.ok(read("lookup/index.html").includes(`href="${route}"`));
   resolveLink(route, "lookup/index.html");
+}
+
+const updates = read("updates/index.html");
+assert.ok(updates.includes('href="history.json"'));
+resolveLink("history.json", "updates/index.html");
+const history = json("updates/history.json");
+assert.ok(Array.isArray(history) && history.length > 0);
+let previousUpdate = Infinity;
+for (const {recordedAt, changes} of history) {
+  const timestamp = Date.parse(recordedAt);
+  assert.ok(timestamp <= previousUpdate && updates.includes(`datetime="${recordedAt}"`));
+  previousUpdate = timestamp;
+  for (const dataset of ["oracle", "printings", "sets", "rulings"]) {
+    for (const field of ["added", "changed", "removed"]) {
+      const value = changes[dataset][field];
+      if (dataset === "rulings" && field === "changed") {
+        assert.equal(value, null);
+      } else {
+        assert.ok(Number.isSafeInteger(value) && value >= 0, `Invalid ${dataset} ${field}`);
+      }
+    }
+  }
 }
 
 const sets = json("sets/index.json");

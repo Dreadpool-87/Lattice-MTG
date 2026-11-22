@@ -48,6 +48,8 @@ jobs:
             echo "No Scryfall content changes to publish." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
+          python3 data_updates.py
+          git add -- dist/updates
           python3 site_data.py build
           python3 prepare_pages.py "$PAGES_BASE_PATH"
           node verify_site.mjs "$PAGES_BASE_PATH"
