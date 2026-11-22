@@ -191,6 +191,15 @@ const printingCsv = parseCollection(`Name,Quantity,Scryfall ID\nLightning Strike
 const printed = matchCollection(printingCsv, {snapshot: sets.snapshot, cards: [strike]}, printIndex);
 assert.equal(printed.items[0].status, "matched");
 assert.equal(printed.items[0].matchBasis, "printing_id");
+const editionCsv = parseCollection([
+  "Name,Quantity,Scryfall ID,Edition (code),Collector's number,Language",
+  `Lightning Strike,1,${m19Strike[0]},(m19),${m19Strike[3]},English`,
+  `Lightning Strike,1,${m19Strike[0]},(m20),${m19Strike[3]},English`,
+].join("\n"));
+const editionMatches = matchCollection(editionCsv, {snapshot: sets.snapshot, cards: [strike]}, printIndex);
+assert.deepEqual(editionMatches.items.map(item => item.printingStatus), ["verified", "mismatch"]);
+assert.deepEqual(editionMatches.items[1].printingCheck.matches[0].conflicts, ["set"]);
+assert.equal(editionMatches.items[0].fields[3], "(m19)");
 
 const header = "Name,Quantity,Oracle ID";
 const input = parseCollection(`${header}\nLightning Bolt,2,${boltId}\nTreasure,1,${treasure.oracleId}`);
