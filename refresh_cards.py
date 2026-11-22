@@ -43,6 +43,7 @@ def content_fingerprint(dist):
         *data.glob("cards-*.json"),
         *data.glob("printings/*.json.gz"),
         data / "tokens.json.gz",
+        data / "commander-ranks.json.gz",
         *(p for p in (dist / "lookup").glob("*.json") if p.name != "manifest.json"),
     ])
     for path in files:

@@ -100,7 +100,7 @@ summary{cursor:pointer;color:var(--muted)}details .tags{margin-top:.55rem}
 .explorer-hero form{max-width:740px;margin-top:1.5rem;background:var(--search-bg);border-color:var(--search-border)}
 .explorer-hero .controls{margin:.6rem 0 0}
 .explorer-hero input[type="search"]{width:100%}
-.explorer-hero select{padding:.4rem .65rem}
+.explorer-hero select{max-width:100%;padding:.4rem .65rem}
 .explorer-main:has(#workspace:not([hidden])) .explorer-hero{padding-top:1.7rem}
 .explorer-main:has(#workspace:not([hidden])) .explorer-hero h1{font-size:clamp(1.9rem,4.7vw,3rem)}
 .start-actions{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:.8rem;margin-top:.8rem}

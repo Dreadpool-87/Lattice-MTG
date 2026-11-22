@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { gunzipSync } from "node:zlib";
 import { exportHtml, exportJsonl, exportMarkdown, exportText, exportTsv, matchCollection, parseCollection } from "./dist/collection/collection.mjs";
 import { makePrintingIndex } from "./dist/printings.mjs";
+import { search } from "./dist/search.mjs";
 
 const dist = fileURLToPath(new URL("./dist/", import.meta.url));
 const basePath = (process.argv[2] ?? "").replace(/\/$/, "");
@@ -172,6 +173,12 @@ assert.ok(guide.includes(`snapshot ${sets.metadataSnapshot}`));
 assert.ok(guide.includes(`snapshot ${rulings.snapshot}`));
 
 const gzipJson = path => JSON.parse(gunzipSync(readFileSync(join(dist, path))));
+const commanderRanks = new Map(gzipJson("data/commander-ranks.json.gz"));
+const solRing = json("data/index.json").find(row => row[1] === "Sol Ring");
+assert.ok(Number.isInteger(commanderRanks.get(solRing[0])));
+const sampleSearch = [[0, "Ring", "a"], [1, "Sol Ring", "b"], [2, "Ring of Thune", "c"]];
+assert.deepEqual(search(sampleSearch, "ring").map(row => row[0]), [0, 2, 1]);
+assert.deepEqual(search(sampleSearch, "ring", undefined, new Map([[0, 50], [1, 1]])).map(row => row[0]), [1, 0, 2]);
 const tokens = gzipJson("data/tokens.json.gz");
 const treasure = tokens.find(card => card.name === "Treasure");
 assert.ok(treasure?.isToken);
