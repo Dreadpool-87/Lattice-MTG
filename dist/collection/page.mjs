@@ -13,6 +13,14 @@ let catalog, sqlite, collection, groups = [], cards, page = 0, importId = 0, fil
 let foilColumn = -1;
 
 const isFoil = item => /^(foil|yes|true|1)$/i.test(item.fields[foilColumn]?.trim());
+const variantLabels = {
+  borderless: "Borderless", showcase: "Showcase", extendedart: "Extended Art", fullart: "Full Art",
+  textless: "Textless", promo: "Promo", serialized: "Serialized",
+};
+const variantsFor = item => {
+  const {matches} = item.printingCheck;
+  return item.printingStatus === "verified" && matches?.length === 1 ? matches[0].record.variants ?? [] : [];
+};
 
 function node(tag, value, className) {
   const element = document.createElement(tag);
@@ -141,6 +149,9 @@ function rowDetails(group) {
       if (isFoil(item)) {
         heading.append(node("span", "Foil", "tag"));
       }
+      for (const variant of variantsFor(item)) {
+        if (Object.hasOwn(variantLabels, variant)) heading.append(node("span", variantLabels[variant], "tag"));
+      }
       if (item.printingId || (item.setCode && item.collectorNumber)) {
         const status = node("span", printingStates[item.printingStatus], "tag printing-status");
         status.dataset.status = item.printingStatus;
@@ -189,7 +200,7 @@ const setFor = item => item.printingStatus === "verified"
   : item.setCode.toUpperCase() || item.editionName || "";
 const manaValue = card => card.isToken ? undefined : card.catalogManaValue;
 
-function populateFilters() {
+function populateFilters(printing) {
   const availableTypes = new Set(Array.from(cards.values()).flatMap(typesFor));
   const manaValues = new Set(Array.from(cards.values(), manaValue).filter(Number.isFinite));
   const sets = new Set(collection.items.map(setFor).filter(Boolean));
@@ -202,6 +213,10 @@ function populateFilters() {
     const select = el(id);
     select.replaceChildren(select.options[0], ...values.map(value => new Option(value, value)));
   }
+  const variants = el("printing-variant");
+  variants.replaceChildren(variants.options[0], new Option("Special variants", "any"),
+    ...Object.entries(variantLabels).map(([key, label]) => new Option(label, key)));
+  el("printing-variant-filter").hidden = !printing?.variantsVersion;
 }
 
 function matchesColor(colors, color) {
@@ -212,7 +227,7 @@ function matchesColor(colors, color) {
   return colors.includes(color);
 }
 
-function matchingGroups({search, status, printingStatus, finish, type, color, mana, set}) {
+function matchingGroups({search, status, printingStatus, finish, variant, type, color, mana, set}) {
   const found = [];
   for (const group of groups) {
     if (status && group.status !== status) continue;
@@ -220,6 +235,7 @@ function matchingGroups({search, status, printingStatus, finish, type, color, ma
     const items = group.items.filter(item =>
       (!printingStatus || item.printingStatus === printingStatus) &&
       (finish !== "foil" || isFoil(item)) &&
+      (!variant || (variant === "any" ? variantsFor(item).length > 0 : variantsFor(item).includes(variant))) &&
       (!set || setFor(item) === set) &&
       (!(type || color || mana) || item.oracleIds.some(id => {
         const card = cards.get(id);
@@ -262,6 +278,7 @@ function render() {
     status: el("match-status").value,
     printingStatus: el("printing-status").value,
     finish: el("card-finish").value,
+    variant: el("printing-variant").value,
     type: el("card-type").value,
     color: el("card-color").value,
     mana: el("mana-value").value,
@@ -338,7 +355,7 @@ async function importCollection(selected, restoring = false) {
     collection = matchCollection(input, snapshot, printing);
     filename = selected.name.replace(/\.csv$/i, "") + "-lattice";
     updateGroups();
-    populateFilters();
+    populateFilters(printing);
     resetFilters();
     el("sort-order").value = "";
     const {rows, copies} = collection.summary;

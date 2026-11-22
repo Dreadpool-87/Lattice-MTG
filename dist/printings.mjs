@@ -42,9 +42,10 @@ function sourceInfo() {
 }
 
 function unpack(row, setNames) {
-  const [printingId, oracleId, setCode, collectorNumber, language, printedName, finishes, token, multiverseId] = row;
+  const [printingId, oracleId, setCode, collectorNumber, language, printedName, finishes, token, multiverseId, variants] = row;
   return {printingId, oracleId, setCode, collectorNumber, language, printedName,
-    setName: setNames[setCode] ?? "", finishes: finishes ? finishes.split(", ") : [], token: Boolean(token), multiverseId};
+    setName: setNames[setCode] ?? "", finishes: finishes ? finishes.split(", ") : [], token: Boolean(token),
+    multiverseId: multiverseId ?? undefined, ...(variants && {variants: variants.split(",")})};
 }
 
 function readOracleShard(prefix) {
@@ -77,7 +78,7 @@ export function makePrintingIndex(info, rows) {
     if (!byPosition.has(position)) byPosition.set(position, []);
     byPosition.get(position).push(printing);
   }
-  return {snapshot: info.snapshot, source: info.source, byId, byPosition};
+  return {snapshot: info.snapshot, source: info.source, variantsVersion: info.variantsVersion, byId, byPosition};
 }
 
 const positionKey = (set, number) => set.toUpperCase() + "/" + number.toLowerCase();
