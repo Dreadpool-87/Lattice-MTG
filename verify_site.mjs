@@ -177,12 +177,22 @@ assert.deepEqual(jsonl, [
 ]);
 const indexRows = parseCollection(exportTsv(exportCollection)).items;
 assert.deepEqual(indexRows.map(row => [row.oracleId, row.quantity]), [[boltId, 2]]);
-assert.match(exportMarkdown(exportCollection), /## Instants\n\n### Lightning Bolt/);
-assert.match(exportMarkdown(exportCollection), /Tokens and emblems outside the deck inventory/);
+const markdown = exportMarkdown(exportCollection);
+assert.match(markdown, /Collection overview[\s\S]*\| Instants \| 1 \| 2 \|[\s\S]*## Instants\n\n### Lightning Bolt · 2 copies/);
+assert.match(markdown, /Token or emblem rows: 1\n- Rows needing review: 1/);
+assert.match(markdown, /Tokens and emblems outside the deck inventory/);
 const offlineHtml = exportHtml(exportCollection);
-assert.match(offlineHtml, /<h3>Lightning Bolt<\/h3>/);
+assert.match(offlineHtml, /<h3>Lightning Bolt · 2 copies<\/h3>/);
+assert.match(offlineHtml, /<a href="#instants">Instants<\/a><\/th><td>1<\/td><td>2<\/td>/);
+assert.match(offlineHtml, /<h2 id="instants">Instants<\/h2>/);
 assert.match(offlineHtml, /&lt;script&gt;/);
 assert.doesNotMatch(offlineHtml, /<script/);
 assert.match(offlineHtml, /Format legality/);
+
+const multiInput = parseCollection(`${header}\nFire // Ice,1,${split.oracleId}\nLightning Strike,3,${strike.oracleId}\nLightning Bolt,2,${boltId}`);
+const multi = matchCollection(multiInput, {snapshot: sets.snapshot, source: "Scryfall", cards: [split, strike, bolt]}, null);
+const multiMarkdown = exportMarkdown(multi);
+assert.match(multiMarkdown, /\| Instants \| 3 \| 6 \|/);
+assert.match(multiMarkdown, /### Lightning Bolt[\s\S]*### Lightning Strike[\s\S]*### Fire \/\/ Ice · 1 copy[\s\S]*#### Fire[\s\S]*#### Ice/);
 
 console.log("Verified Pages links, lookup fixtures, snapshots, checksum, and collection import and exports.");
