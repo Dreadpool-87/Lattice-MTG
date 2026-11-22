@@ -10,6 +10,9 @@ const sessionKey = "lattice.collection.v1";
 const file = el("csv-file");
 const filterSelects = Array.from(el("collection-filters").querySelectorAll("select"));
 let catalog, sqlite, collection, groups = [], cards, page = 0, importId = 0, filename, retrySource;
+let foilColumn = -1;
+
+const isFoil = item => /^(foil|yes|true|1)$/i.test(item.fields[foilColumn]?.trim());
 
 function node(tag, value, className) {
   const element = document.createElement(tag);
@@ -39,6 +42,7 @@ function loadSQLite() {
 }
 
 function updateGroups() {
+  foilColumn = collection.columns.findIndex(column => column.trim().toLowerCase() === "foil");
   const byName = new Map();
   for (const item of collection.items) {
     const key = item.name.normalize("NFC").toLowerCase() + "\0" + item.status;
@@ -123,7 +127,6 @@ function rowDetails(group) {
     const ids = new Set(group.items.flatMap(item => item.oracleIds));
     const list = node("ul", undefined, "collection-entries");
     const directGatherer = new Set();
-    const foilColumn = collection.columns.findIndex(column => column.trim().toLowerCase() === "foil");
     for (const item of group.items) {
       const matches = item.printingCheck.matches ?? [];
       const verified = item.printingStatus === "verified";
@@ -135,7 +138,7 @@ function rowDetails(group) {
       const heading = node("div", undefined, "collection-printing-header");
       heading.append(node("span", `×${format.format(item.quantity)}`, "collection-printing-quantity"));
       if (printing) heading.append(node("strong", printing));
-      if (/^(foil|yes|true|1)$/i.test(item.fields[foilColumn]?.trim())) {
+      if (isFoil(item)) {
         heading.append(node("span", "Foil", "tag"));
       }
       if (item.printingId || (item.setCode && item.collectorNumber)) {
@@ -209,13 +212,14 @@ function matchesColor(colors, color) {
   return colors.includes(color);
 }
 
-function matchingGroups({search, status, printingStatus, type, color, mana, set}) {
+function matchingGroups({search, status, printingStatus, finish, type, color, mana, set}) {
   const found = [];
   for (const group of groups) {
     if (status && group.status !== status) continue;
     if (!group.name.normalize("NFC").toLowerCase().includes(search)) continue;
     const items = group.items.filter(item =>
       (!printingStatus || item.printingStatus === printingStatus) &&
+      (finish !== "foil" || isFoil(item)) &&
       (!set || setFor(item) === set) &&
       (!(type || color || mana) || item.oracleIds.some(id => {
         const card = cards.get(id);
@@ -257,6 +261,7 @@ function render() {
     search,
     status: el("match-status").value,
     printingStatus: el("printing-status").value,
+    finish: el("card-finish").value,
     type: el("card-type").value,
     color: el("card-color").value,
     mana: el("mana-value").value,
