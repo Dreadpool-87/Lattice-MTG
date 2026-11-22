@@ -1,4 +1,5 @@
 name: Publish Lattice MTG
+run-name: ${{ inputs.automatic_fallback && 'Automatic Scryfall refresh (Cloudflare fallback)' || 'Publish Lattice MTG' }}
 
 on:
   push:
@@ -12,6 +13,10 @@ on:
     inputs:
       refresh_data:
         description: Refresh all Scryfall data before publishing
+        type: boolean
+        default: false
+      automatic_fallback:
+        description: Identify a refresh submitted by the Cloudflare fallback scheduler
         type: boolean
         default: false
 
