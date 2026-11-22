@@ -65,9 +65,12 @@
             <option value="mana-asc">Mana value low to high</option><option value="mana-desc">Mana value high to low</option>
           </select>
         </div>
-        <details class="collection-filter-panel">
-          <summary id="filter-summary">Filters</summary>
-          <div id="collection-filters">
+        <div class="collection-filter-panel">
+          <div class="collection-filter-actions">
+            <button type="button" id="filter-summary" aria-expanded="false" aria-controls="collection-filters">Filters</button>
+            <button type="button" id="reset-filters" hidden>Reset filters</button>
+          </div>
+          <div id="collection-filters" hidden>
             <label>Type
               <select id="card-type"><option value="">All types</option></select>
             </label>
@@ -106,10 +109,9 @@
               <select id="printing-variant"><option value="">All variants</option></select>
             </label>
           </div>
-        </details>
+        </div>
         <div class="collection-results">
           <p id="filter-results" class="hint" role="status"></p>
-          <button type="button" id="reset-filters" disabled>Reset filters</button>
         </div>
         <div id="cards" class="collection-cards"></div>
         <nav id="pages" aria-label="Collection pages" hidden>
