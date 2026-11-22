@@ -11,7 +11,7 @@ A static Magic: The Gathering card explorer and collection import tool. Card inf
 
 Choose a format and select **Download**. The download uses the whole imported collection regardless of the current view filters.
 
-- **TXT, Markdown, HTML** provide readable inventories. Markdown and offline HTML group cards by the type of their first part and list tokens and rows needing review separately.
+- **TXT, Markdown, HTML** provide readable inventories. Markdown and offline HTML open with totals by card type. Cards are grouped by the type of their first part, then sorted by mana value and name. HTML links the overview to each group. Tokens and rows needing review are listed separately.
 - **TSV** is a compact index of confirmed, playable cards with one row per Oracle identity.
 - **JSON, JSON Lines, SQLite** retain imported rows, printing checks, and card records. The JSON Lines file is UTF-8 and starts with a `{"type":"collection","data":…}` metadata record, followed by `item` records in import order and `card` records for the linked Oracle identities.
 

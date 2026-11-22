@@ -225,47 +225,63 @@ const tokenHeading = "Tokens and emblems outside the deck inventory";
 const reviewHeading = "Rows outside the deck inventory pending review";
 const credit = "Unofficial Magic: The Gathering fan content. Portions © Wizards of the Coast.";
 
-function groupByType(cards) {
+function readableInventory(collection) {
+  const inventory = deckInventory(collection);
+  const {cards, counts, tokens, review} = inventory;
   const groups = new Map([...cardTypes.map(([, title]) => [title, []]), ["Other cards", []]]);
   for (const card of cards) {
     const types = typeWords(card.faces[0]);
     const title = cardTypes.find(([type]) => types.includes(type))?.[1] ?? "Other cards";
     groups.get(title).push(card);
   }
-  for (const group of groups.values()) {
-    group.sort((a, b) => (a.catalogManaValue ?? Infinity) - (b.catalogManaValue ?? Infinity));
-  }
-  return [...groups].filter(([, group]) => group.length);
+  const sections = [...groups].filter(([, group]) => group.length).map(([title, group]) => ({
+    title,
+    id: title.toLowerCase().replaceAll(" ", "-"),
+    cards: group.sort((a, b) => (a.catalogManaValue ?? Infinity) - (b.catalogManaValue ?? Infinity)),
+    copies: group.reduce((total, card) => total + counts.get(card.oracleId), 0),
+  }));
+  const extras = [
+    {title: tokenHeading, id: "tokens-and-emblems", label: "Token or emblem rows", rows: tokens},
+    {title: reviewHeading, id: "pending-review", label: "Rows needing review", rows: review},
+  ];
+  return {...inventory, sections, extras};
 }
 
+const copiesLabel = count => `${count} ${count === 1 ? "copy" : "copies"}`;
+const groupingNote = "Each card is counted once and grouped by the type of its first part. Within each group, cards are ordered by mana value, then name.";
 const escapeHtml = value => String(value).replace(/[&<>"']/g,
   char => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"})[char]);
 const escapeMarkdown = value => String(value).replace(/[\\`*_{}\[\]()#+!|~]/g, "\\$&")
   .replace(/[&<>]/g, escapeHtml);
 
 export function exportMarkdown(collection) {
-  const {counts, copies, cards, tokens, review} = deckInventory(collection);
+  const {counts, copies, cards, sections, extras} = readableInventory(collection);
   const lines = [
-    "# Lattice MTG collection", "",
-    `Deck inventory: ${cards.length} Oracle identities · ${copies} copies.`,
-    `Oracle snapshot: ${escapeMarkdown(collection.snapshot)} · ${escapeMarkdown(collection.source)}`,
-    "Cards are grouped by the first card part and counted once.", "",
+    "# Lattice MTG collection", "", "## Collection overview", "",
+    `**${cards.length} unique playable cards · ${copiesLabel(copies)}**`, "",
+    `Oracle snapshot: ${escapeMarkdown(collection.snapshot)} · ${escapeMarkdown(collection.source)}`, "",
+    ...extras.map(({label, rows}) => `- ${label}: ${rows.length}`), "",
   ];
-  for (const [title, group] of groupByType(cards)) {
+  if (sections.length) {
+    lines.push("| Card type | Unique cards | Copies |", "| --- | ---: | ---: |",
+      ...sections.map(section => `| ${section.title} | ${section.cards.length} | ${section.copies} |`),
+      "", groupingNote, "");
+  }
+  for (const {title, cards: group} of sections) {
     lines.push(`## ${title}`, "");
     for (const card of group) {
-      lines.push(`### ${escapeMarkdown(card.name)}`, "",
-        `Copies: ${counts.get(card.oracleId)} · Oracle ID: \`${card.oracleId}\` · Color identity: ${colorIdentity(card)}`, "");
+      lines.push(`### ${escapeMarkdown(card.name)} · ${copiesLabel(counts.get(card.oracleId))}`, "");
       for (const face of card.faces) {
-        if (card.faces.length > 1) lines.push(`**${escapeMarkdown(face.name)}**`, "");
+        if (card.faces.length > 1) lines.push(`#### ${escapeMarkdown(face.name)}`, "");
         lines.push(escapeMarkdown(faceDetails(face)), "");
         if (face.oracleText) {
           lines.push(face.oracleText.split(/\r?\n/).map(line => `> ${escapeMarkdown(line)}`).join("  \n"), "");
         }
       }
+      lines.push(`Oracle ID: \`${card.oracleId}\` · Color identity: ${colorIdentity(card)} · Mana value: ${card.catalogManaValue ?? "Unknown"}`, "");
     }
   }
-  for (const [title, rows] of [[tokenHeading, tokens], [reviewHeading, review]]) {
+  for (const {title, rows} of extras) {
     if (rows.length) lines.push(`## ${title}`, "", ...rows.map(row => `- ${escapeMarkdown(row)}`), "");
   }
   return lines.join("\n") + credit + "\n";
@@ -286,8 +302,13 @@ export function exportTsv(collection) {
 }
 
 export function exportHtml(collection) {
-  const {counts, copies, cards, tokens, review} = deckInventory(collection);
-  const sections = groupByType(cards).map(([title, group]) => {
+  const {counts, copies, cards, sections, extras} = readableInventory(collection);
+  const typeTable = sections.length ? `<table>
+<caption>Cards by type</caption>
+<thead><tr><th scope="col">Card type</th><th scope="col">Unique cards</th><th scope="col">Copies</th></tr></thead>
+<tbody>${sections.map(section => `<tr><th scope="row"><a href="#${section.id}">${section.title}</a></th><td>${section.cards.length}</td><td>${section.copies}</td></tr>`).join("\n")}</tbody>
+</table><p>${groupingNote}</p>` : "";
+  const details = sections.map(({title, id, cards: group}) => {
     const entries = group.map(card => {
       const faces = card.faces.map(face => `<section>
 ${card.faces.length > 1 ? `<h4>${escapeHtml(face.name)}</h4>` : ""}
@@ -296,16 +317,16 @@ ${face.oracleText ? `<p class="rules">${escapeHtml(face.oracleText)}</p>` : ""}
 </section>`).join("\n");
       const legality = Object.entries(card.legality ?? {}).map(([status, formats]) =>
         `<li>${escapeHtml(status.replaceAll("_", " "))}: ${escapeHtml(formats.join(", "))}</li>`).join("");
-      return `<article><h3>${escapeHtml(card.name)}</h3>
-<p>Copies: ${counts.get(card.oracleId)} · Oracle ID: <code>${escapeHtml(card.oracleId)}</code> · Color identity: ${escapeHtml(colorIdentity(card))}</p>
+      return `<article><h3>${escapeHtml(card.name)} · ${copiesLabel(counts.get(card.oracleId))}</h3>
 ${faces}
+<p class="card-meta">Oracle ID: <code>${escapeHtml(card.oracleId)}</code> · Color identity: ${escapeHtml(colorIdentity(card))} · Mana value: ${escapeHtml(card.catalogManaValue ?? "Unknown")}</p>
 ${legality ? `<details><summary>Format legality</summary><ul>${legality}</ul></details>` : ""}
 </article>`;
     }).join("\n");
-    return `<section><h2>${title}</h2>\n${entries}</section>`;
+    return `<section><h2 id="${id}">${title}</h2>\n${entries}\n<p><a href="#overview">Back to overview</a></p></section>`;
   });
-  for (const [title, rows] of [[tokenHeading, tokens], [reviewHeading, review]]) {
-    if (rows.length) sections.push(`<section><h2>${title}</h2><ul>${
+  for (const {title, id, rows} of extras) {
+    if (rows.length) details.push(`<section><h2 id="${id}">${title}</h2><ul>${
       rows.map(row => `<li>${escapeHtml(row)}</li>`).join("")}</ul></section>`);
   }
   return `<!doctype html>
@@ -316,13 +337,22 @@ ${legality ? `<details><summary>Format legality</summary><ul>${legality}</ul></d
 :root{color-scheme:light dark}
 body{font:1rem/1.55 system-ui,sans-serif;max-width:48rem;margin:2rem auto;padding:0 1rem;overflow-wrap:anywhere}
 article{border-block-start:1px solid GrayText;padding-block:.65rem}
+table{width:100%;max-width:32rem;border-collapse:collapse}
+caption{text-align:left;font-weight:700;margin-block:.6rem .25rem}
+th,td{padding:.35rem .45rem;border-block-end:1px solid GrayText;text-align:right}
+th:first-child{text-align:left}
+.card-meta{font-size:.875rem}
 .rules{white-space:pre-wrap}summary{cursor:pointer}
 </style></head><body><main>
 <h1>Lattice MTG collection</h1>
-<p>Deck inventory: ${cards.length} Oracle identities · ${copies} copies.</p>
+<section aria-labelledby="overview">
+<h2 id="overview">Collection overview</h2>
+<p><strong>${cards.length} unique playable cards · ${copiesLabel(copies)}</strong></p>
 <p>Oracle snapshot: ${escapeHtml(collection.snapshot)} · ${escapeHtml(collection.source)}</p>
-<p>Cards are grouped by the first card part and counted once.</p>
-${sections.join("\n")}
+<ul>${extras.map(({id, label, rows}) => `<li>${rows.length ? `<a href="#${id}">${label}</a>` : label}: ${rows.length}</li>`).join("")}</ul>
+${typeTable}
+</section>
+${details.join("\n")}
 <footer><p>${credit}</p></footer>
 </main></body></html>\n`;
 }
