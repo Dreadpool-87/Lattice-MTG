@@ -26,6 +26,10 @@ def validate(snapshot):
     for released in releases.values():
         if released is not None:
             date.fromisoformat(released)
+    for code, detail in sets.get("setDetails", {}).items():
+        if (code not in releases or not build_sets.SET_TYPE.fullmatch(detail["type"])
+                or ("parent" in detail and not build_sets.SET_CODE.fullmatch(detail["parent"]))):
+            raise ValueError(f"Invalid set details for {code}")
 
     notes = rulings["notes"]
     if (not notes or len(notes) != rulings["cards"]
@@ -63,10 +67,10 @@ def refresh():
         for current, old, label in counts:
             if current * 10 < old * 9:
                 raise ValueError(f"Unexpected {label} count: {old:,} → {current:,}")
-        for name, field in (("sets", "releaseDates"), ("rulings", "notes")):
-            # Preserve the published snapshot date when only the export timestamp changed.
-            if snapshot[name][field] == previous[name][field]:
-                snapshot[name] = previous[name]
+        if all(snapshot["sets"].get(field) == previous["sets"].get(field) for field in ("releaseDates", "setDetails")):
+            snapshot["sets"] = previous["sets"]
+        if snapshot["rulings"]["notes"] == previous["rulings"]["notes"]:
+            snapshot["rulings"] = previous["rulings"]
         if snapshot == previous:
             print("Set metadata and official rulings have not changed.")
             return
