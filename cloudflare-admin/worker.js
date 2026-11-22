@@ -2,7 +2,63 @@ const repository = "https://github.com/Dreadpool-87/Lattice-MTG";
 const workflow = "https://api.github.com/repos/Dreadpool-87/Lattice-MTG/actions/workflows/pages.yml";
 const startedHere = { pending: false, checkAfter: 0 };
 
-function page(message, { status = 200, runId, canStart = false } = {}) {
+const workflowSources = {
+  schedule: "Automatic",
+  workflow_dispatch: "Manual",
+};
+const updateClock = new Intl.DateTimeFormat("en-GB", {
+  dateStyle: "medium",
+  timeStyle: "short",
+  timeZone: "Europe/Brussels",
+});
+
+function githubHeaders(token) {
+  return {
+    Authorization: "Bearer " + token,
+    Accept: "application/vnd.github+json",
+    "X-GitHub-Api-Version": "2026-03-10",
+    "User-Agent": "Lattice-MTG-Admin",
+  };
+}
+
+async function lastPublishedUpdate(token) {
+  if (!token) return "Unavailable";
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8_000);
+  const options = { headers: githubHeaders(token), redirect: "manual", signal: controller.signal };
+  const get = async (url) => {
+    const response = await fetch(url, options);
+    if (!response.ok) throw new Error("GitHub returned HTTP " + response.status);
+    return response.json();
+  };
+
+  try {
+    const groups = await Promise.all(Object.keys(workflowSources).map(async (event) => {
+      const data = await get(workflow + "/runs?branch=main&status=success&per_page=15&event=" + event);
+      return data.workflow_runs;
+    }));
+    const runs = groups.flat().sort((a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at));
+    const jobsBase = "https://api.github.com/repos/Dreadpool-87/Lattice-MTG/actions/runs/";
+    for (const run of runs) {
+      if (!Number.isSafeInteger(run.id) || run.id < 1 || !Object.hasOwn(workflowSources, run.event)) continue;
+      const { jobs } = await get(jobsBase + run.id + "/jobs");
+      if (!jobs.some(job => job.name === "refresh" && job.conclusion === "success")) continue;
+      const published = jobs.find(job => job.name === "deploy" && job.conclusion === "success");
+      if (!published) continue;
+      const time = Date.parse(published.completed_at);
+      if (!Number.isFinite(time)) return "Unavailable";
+      return '<a href="' + repository + '/actions/runs/' + run.id + '">' +
+        updateClock.format(time) + '</a> Belgian time · ' + workflowSources[run.event];
+    }
+    return "No data publication found in recent runs";
+  } catch {
+    return "Temporarily unavailable";
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function page(message, { status = 200, runId, canStart = false, lastUpdate } = {}) {
   const nonce = crypto.randomUUID();
   const runLink = runId
     ? '<p><a href="' + repository + '/actions/runs/' + runId + '">View workflow run</a></p>'
@@ -18,7 +74,7 @@ function page(message, { status = 200, runId, canStart = false } = {}) {
     'main{max-width:36rem;margin:12vh auto;padding:0 1rem}' +
     'button{font:inherit;padding:.75rem 1.25rem}</style>' +
     '<main><h1>Lattice MTG Admin</h1><p>' + message + '</p>' +
-    form + runLink + '</main>' +
+    form + (lastUpdate ? '<p>Last published update: ' + lastUpdate + '</p>' : '') + runLink + '</main>' +
     '<script nonce="' + nonce + '">document.querySelector("form")?.addEventListener("submit", ' +
     'event => {const button=event.currentTarget.querySelector("button");' +
     'button.disabled=true;button.textContent="Starting…";});</script></html>',
@@ -52,7 +108,10 @@ export default {
       if (url.searchParams.get("submitted") === "1") {
         return page("GitHub accepted the update. Check the workflow history for the result.");
       }
-      return page("Start a refresh of the Scryfall card data, sets, and rulings.", { canStart: true });
+      return page("Start a refresh of the Scryfall card data, sets, and rulings.", {
+        canStart: true,
+        lastUpdate: await lastPublishedUpdate(env.GITHUB_ACTIONS_TOKEN?.trim()),
+      });
     }
     if (request.method !== "POST" || url.pathname !== "/refresh") {
       return new Response("Not found.", { status: 404 });
@@ -69,12 +128,7 @@ export default {
     }
 
     startedHere.pending = true;
-    const headers = {
-      Authorization: "Bearer " + token,
-      Accept: "application/vnd.github+json",
-      "X-GitHub-Api-Version": "2026-03-10",
-      "User-Agent": "Lattice-MTG-Admin",
-    };
+    const headers = githubHeaders(token);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 20_000);
     let stage = "workflow status check";
