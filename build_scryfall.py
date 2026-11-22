@@ -16,7 +16,7 @@ SOURCE = "https://scryfall.com/docs/api/bulk-data"
 TOKEN_LAYOUTS = {"token", "double_faced_token", "emblem"}
 STATS = ("power", "toughness", "loyalty", "defense")
 PRINTING_VARIANTS_VERSION = 1
-DECK_DATA_VERSION = 1
+DECK_DATA_VERSION = 2
 RELATED_COMPONENTS = {"token", "meld_part", "meld_result", "combo_piece"}
 
 
@@ -43,6 +43,13 @@ def records(path, metadata):
 
 def save(path, value):
     path.write_text(json.dumps(value, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+
+
+def commander_rank(raw):
+    rank = raw.get("edhrec_rank")
+    if type(rank) is int and rank > 0 and raw.get("legalities", {}).get("commander") == "legal":
+        return rank
+    return None
 
 
 def compact_face(face, type_line=""):
@@ -84,6 +91,7 @@ def build(dist, catalog_path, print_path, metadata):
     tokens = []
     previous = {}
     related_parts = {}
+    commander_ranks = {}
     data = dist / "data"
     for path in data.glob("cards-*.json"):
         for cid, card in json.loads(path.read_text()).items():
@@ -105,6 +113,9 @@ def build(dist, catalog_path, print_path, metadata):
         cid, old = previous.get(oid, (next_id, {}))
         if not old:
             next_id += 1
+        rank = commander_rank(raw)
+        if rank is not None:
+            commander_ranks[cid] = rank
         faces, concise = [], []
         for face in raw.get("card_faces") or [raw]:
             name, typ = face["name"], face.get("type_line") or raw.get("type_line") or ""
@@ -236,6 +247,7 @@ def build(dist, catalog_path, print_path, metadata):
         save(data / f"cards-{bucket}.json", shard)
     save(data / "index.json", index)
     save(data / "oracle.json", search)
+    write_gzip(data / "commander-ranks.json.gz", sorted(commander_ranks.items()))
     with catalog_path.open("rb") as stream:
         digest = hashlib.file_digest(stream, "sha256").hexdigest()
     save(data / "meta.json", {

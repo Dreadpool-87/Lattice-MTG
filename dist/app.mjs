@@ -10,7 +10,7 @@ const pageSize = 10;
 const shards = new Map();
 const rulingShards = new Map();
 const tokenCards = new Map();
-let catalog, byId = new Map(), matches = [], oracle, selected, card, face, page = 0;
+let catalog, byId = new Map(), matches = [], oracle, commanderRanks, selected, card, face, page = 0;
 let searchRequest = 0, cardRequest = 0;
 
 async function read(url) {
@@ -81,6 +81,7 @@ function shareUrl() {
   if (query) {
     params.set("q", query);
     if (el("scope").value === "oracle") params.set("scope", "oracle");
+    if (el("sort").value === "commander") params.set("sort", "commander");
   }
   if (selected !== undefined) params.set("card", byId.get(selected)[2]);
   history.replaceState({}, "", location.pathname + (params.size ? "?" + params : ""));
@@ -103,6 +104,7 @@ async function find({updateUrl = true} = {}) {
   const run = ++searchRequest;
   const query = el("query").value.trim();
   const scope = el("scope").value;
+  const popularity = el("sort").value === "commander";
   ++cardRequest;
   selected = undefined;
   detail.hidden = true;
@@ -126,10 +128,21 @@ async function find({updateUrl = true} = {}) {
       });
     }
     const text = scope === "oracle" ? await oracle : undefined;
+    let ranks;
+    if (popularity) {
+      commanderRanks ??= readGzipJson("/data/commander-ranks.json.gz").then(entries => new Map(entries)).catch(() => {
+        commanderRanks = undefined;
+      });
+      ranks = await commanderRanks;
+    }
     if (run !== searchRequest) return;
-    matches = search(rows, query, text);
+    matches = search(rows, query, text, ranks);
     page = 0;
     renderResults();
+    if (popularity && !ranks) {
+      el("sort").value = "relevance";
+      el("status").textContent += " · EDHREC rankings unavailable. Sorted by relevance.";
+    }
     if (updateUrl) shareUrl();
   } catch {
     if (run === searchRequest) el("status").textContent = "Could not load the catalog. Try searching again.";
@@ -241,6 +254,9 @@ el("search").addEventListener("submit", event=>{event.preventDefault();find();})
 el("scope").addEventListener("change", () => {
   if (el("query").value.trim()) find();
 });
+el("sort").addEventListener("change", () => {
+  if (el("query").value.trim()) find();
+});
 el("results").addEventListener("click", event=>{
   const button = event.target.closest("[data-card]");
   if (button) openCard(Number(button.dataset.card),0,{move: true});
@@ -287,6 +303,7 @@ const initialQuery = params.get("q")?.trim();
 const initialCard = params.get("card");
 el("query").value = initialQuery ?? "";
 el("scope").value = params.get("scope") === "oracle" ? "oracle" : "name";
+el("sort").value = params.get("sort") === "commander" ? "commander" : "relevance";
 const initialSearch = initialQuery ? find({updateUrl: false}) : undefined;
 const initialRequest = searchRequest;
 await initialSearch;
