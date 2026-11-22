@@ -10,7 +10,9 @@ const pageSize = 30;
 const sessionKey = "lattice.collection.v1";
 const viewKey = "lattice.collection.view.v1";
 const file = el("csv-file");
-const filterSelects = Array.from(el("collection-filters").querySelectorAll("select"));
+const filterPanel = el("collection-filters");
+const filterButton = el("filter-summary");
+const filterSelects = Array.from(filterPanel.querySelectorAll("select"));
 const viewControls = [el("filter"), el("sort-order"), ...filterSelects];
 let catalog, sqlite, collection, groups = [], cards, page = 0, importId = 0, filename, retrySource;
 let foilColumn = -1;
@@ -219,35 +221,85 @@ function populateFilters(printing) {
   el("printing-variant-filter").hidden = !printing?.variantsVersion;
 }
 
-function matchesColor(colors, color) {
-  if (!color) return true;
-  if (!colors) return false;
-  if (color === "colorless") return colors.length === 0;
-  if (color === "multicolor") return colors.length > 1;
-  return colors.includes(color);
+function colorOptions(card) {
+  const colors = card.cardColors;
+  if (!colors) return [];
+  if (!colors.length) return ["colorless"];
+  return colors.length > 1 ? [...colors, "multicolor"] : colors;
 }
 
-function matchingGroups({search, status, printingStatus, finish, variant, type, color, mana, set}) {
+const itemFacets = new Map([
+  ["match-status", (item, group) => [group.status]],
+  ["printing-status", item => [item.printingStatus]],
+  ["card-finish", item => isFoil(item) ? ["foil"] : []],
+  ["printing-variant", item => {
+    const variants = variantsFor(item);
+    return variants.length ? ["any", ...variants] : [];
+  }],
+  ["card-set", item => [setFor(item)]],
+]);
+const cardFacets = new Map([
+  ["card-type", typesFor],
+  ["card-color", colorOptions],
+  ["mana-value", card => {
+    const value = manaValue(card);
+    return Number.isFinite(value) ? [String(value)] : [];
+  }],
+]);
+
+function matchesFacets(facets, filters, record, group) {
+  for (const [id, valuesFor] of facets) {
+    if (filters[id] && !valuesFor(record, group).includes(filters[id])) return false;
+  }
+  return true;
+}
+
+function matchingGroups(candidates, filters) {
+  const filterCards = [...cardFacets.keys()].some(id => filters[id]);
   const found = [];
-  for (const group of groups) {
-    if (status && group.status !== status) continue;
-    if (!group.name.normalize("NFC").toLowerCase().includes(search)) continue;
+  for (const group of candidates) {
     const items = group.items.filter(item =>
-      (!printingStatus || item.printingStatus === printingStatus) &&
-      (finish !== "foil" || isFoil(item)) &&
-      (!variant || (variant === "any" ? variantsFor(item).length > 0 : variantsFor(item).includes(variant))) &&
-      (!set || setFor(item) === set) &&
-      (!(type || color || mana) || item.oracleIds.some(id => {
-        const card = cards.get(id);
-        return (!type || typesFor(card).includes(type)) &&
-          matchesColor(card.cardColors, color) &&
-          (!mana || manaValue(card) === Number(mana));
-      })));
+      matchesFacets(itemFacets, filters, item, group) &&
+      (!filterCards || item.oracleIds.some(id => matchesFacets(cardFacets, filters, cards.get(id)))));
     if (items.length) {
       found.push({...group, items, quantity: items.reduce((sum, item) => sum + item.quantity, 0)});
     }
   }
   return found;
+}
+
+function readFilters() {
+  const search = el("filter").value.trim().normalize("NFC").toLowerCase();
+  const candidates = search ? groups.filter(group => group.name.normalize("NFC").toLowerCase().includes(search)) : groups;
+  const filters = Object.fromEntries(filterSelects.map(select => [select.id, select.value]));
+  return {search, candidates, filters};
+}
+
+function updateFilterCounts(candidates, filters) {
+  for (const select of filterSelects) {
+    if (select.closest("label[hidden]")) continue;
+    const otherFilters = {...filters, [select.id]: ""};
+    const cardValues = cardFacets.get(select.id);
+    const itemValues = itemFacets.get(select.id);
+    const counts = new Map();
+    let total = 0;
+    for (const group of matchingGroups(candidates, otherFilters)) {
+      total += group.quantity;
+      for (const item of group.items) {
+        const values = cardValues ? item.oracleIds.flatMap(id => {
+          const card = cards.get(id);
+          return matchesFacets(cardFacets, otherFilters, card) ? cardValues(card) : [];
+        }) : itemValues(item, group);
+        for (const value of new Set(values)) {
+          counts.set(value, (counts.get(value) ?? 0) + item.quantity);
+        }
+      }
+    }
+    for (const option of select.options) {
+      const copies = option.value ? (counts.get(option.value) ?? 0) : total;
+      option.label = `${option.text} (${format.format(copies)})`;
+    }
+  }
 }
 
 function sortGroups(found, order) {
@@ -272,21 +324,12 @@ function sortGroups(found, order) {
 }
 
 function render() {
-  const search = el("filter").value.trim().normalize("NFC").toLowerCase();
-  const found = sortGroups(matchingGroups({
-    search,
-    status: el("match-status").value,
-    printingStatus: el("printing-status").value,
-    finish: el("card-finish").value,
-    variant: el("printing-variant").value,
-    type: el("card-type").value,
-    color: el("card-color").value,
-    mana: el("mana-value").value,
-    set: el("card-set").value,
-  }), el("sort-order").value);
+  const {search, candidates, filters} = readFilters();
+  const found = sortGroups(matchingGroups(candidates, filters), el("sort-order").value);
   const active = filterSelects.filter(select => select.value).length;
-  el("filter-summary").textContent = active ? `Filters (${active})` : "Filters";
-  el("reset-filters").disabled = !active && !search;
+  filterButton.textContent = active ? `Filters (${active})` : "Filters";
+  el("reset-filters").hidden = !active && !search;
+  if (!filterPanel.hidden) updateFilterCounts(candidates, filters);
   const copies = found.reduce((sum, group) => sum + group.quantity, 0);
   el("filter-results").textContent = `${format.format(found.length)} card ${found.length === 1 ? "group" : "groups"} · ${format.format(copies)} ${copies === 1 ? "copy" : "copies"}`;
   page = Math.min(page, Math.max(0, Math.ceil(found.length / pageSize) - 1));
@@ -483,7 +526,16 @@ downloadCollection.addEventListener("click", async () => {
   }
 });
 el("filter").addEventListener("input", () => { page = 0; render(); });
-el("collection-filters").addEventListener("change", () => { page = 0; render(); });
+filterPanel.addEventListener("change", () => { page = 0; render(); });
+filterButton.addEventListener("click", () => {
+  const open = filterPanel.hidden;
+  filterPanel.hidden = !open;
+  filterButton.setAttribute("aria-expanded", String(open));
+  if (open) {
+    const {candidates, filters} = readFilters();
+    updateFilterCounts(candidates, filters);
+  }
+});
 el("sort-order").addEventListener("change", () => { page = 0; render(); });
 el("reset-filters").addEventListener("click", () => { resetFilters(); render(); });
 el("previous").addEventListener("click", () => { page--; render(); });
