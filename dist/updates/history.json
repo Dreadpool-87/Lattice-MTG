@@ -1,5 +1,30 @@
 [
   {
+    "recordedAt": "2026-11-22T20:46:02+00:00",
+    "changes": {
+      "oracle": {
+        "added": 0,
+        "changed": 7988,
+        "removed": 0
+      },
+      "printings": {
+        "added": 0,
+        "changed": 0,
+        "removed": 0
+      },
+      "sets": {
+        "added": 0,
+        "changed": 0,
+        "removed": 0
+      },
+      "rulings": {
+        "added": 0,
+        "changed": null,
+        "removed": 0
+      }
+    }
+  },
+  {
     "recordedAt": "2026-11-22T20:28:05+00:00",
     "changes": {
       "oracle": {
