@@ -75,6 +75,8 @@ const assetVersion = path => createHash("sha256")
   .update(readFileSync(join(dist, path))).digest("hex").slice(0, 12);
 const themeScript = `${basePath}/theme.js?v=${assetVersion("theme.js")}`;
 const styleVersion = assetVersion("styles.css");
+const collectionStyle = `${basePath}/collection/collection.css?v=${assetVersion("collection/collection.css")}`;
+assert.ok(read("collection/index.html").includes(`href="${collectionStyle}"`));
 assert.equal(resolveLink(themeScript, "index.html"), "theme.js");
 for (const path of readdirSync(dist, {recursive: true}).filter(path => path.endsWith(".html"))) {
   const html = read(path);

@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parent / "dist"
 ATTR_PATH = re.compile(r'((?:href|src)=")/(?!/)')
 CATALOG_LINK = re.compile(r'(href="(?:letter-|p-)[a-z0-9-]+)(?=[#"])')
 MODULE_PATH = re.compile(r"""(["'`])/(?=data/|collection/|\?)""")
-STYLE_LINK = re.compile(r'(href="[^"?]*/styles\.css)(?:\?v=[0-9a-f]+)?(?=")')
+STYLE_LINK = re.compile(r'(href="[^"?]*/(styles\.css|collection/collection\.css))(?:\?v=[0-9a-f]+)?(?=")')
 THEME_SCRIPT = re.compile(r'<script src="[^"?]*/theme\.js(?:\?v=[0-9a-f]+)?"></script>')
 FAVICON = '<link rel="icon" type="image/svg+xml" href="/lattice-spark.svg">'
 BRAND_LINK = re.compile(r'<a [^>]*class="brand"[^>]*>.*?</a>')
@@ -41,7 +41,10 @@ def with_site_header(html, brand, *, show_admin):
 
 def prepare(base_path):
     prefix = base_path.rstrip("/") + "/"
-    style_version = sha256((ROOT / "styles.css").read_bytes()).hexdigest()[:12]
+    style_versions = {
+        path: sha256((ROOT / path).read_bytes()).hexdigest()[:12]
+        for path in ("styles.css", "collection/collection.css")
+    }
     theme_version = sha256((ROOT / "theme.js").read_bytes()).hexdigest()[:12]
     theme_script = f'<script src="/theme.js?v={theme_version}"></script>'
 
@@ -52,7 +55,7 @@ def prepare(base_path):
     for page in ROOT.rglob("*.html"):
         original = page.read_text(encoding="utf-8")
         branded = with_site_header(original, brand, show_admin=page == updates)
-        branded = STYLE_LINK.sub(lambda match: f"{match[1]}?v={style_version}", branded)
+        branded = STYLE_LINK.sub(lambda match: f"{match[1]}?v={style_versions[match[2]]}", branded)
         if THEME_SCRIPT.search(branded):
             branded = THEME_SCRIPT.sub(theme_script, branded, count=1)
         else:
