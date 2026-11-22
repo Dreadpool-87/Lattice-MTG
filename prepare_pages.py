@@ -7,6 +7,7 @@ ROOT = Path(__file__).resolve().parent / "dist"
 ATTR_PATH = re.compile(r'((?:href|src)=")/(?!/)')
 CATALOG_LINK = re.compile(r'(href="(?:letter-|p-)[a-z0-9-]+)(?=[#"])')
 MODULE_PATH = re.compile(r"""(["'`])/(?=data/|collection/|\?)""")
+FAVICON = '<link rel="icon" type="image/svg+xml" href="/lattice-spark.svg">'
 BRAND_LINK = re.compile(r'<a [^>]*class="brand"[^>]*>.*?</a>')
 BODY_TAG = re.compile(r"<body(?:\s[^>]*)?>")
 LEGACY_HOME_LINK = re.compile(
@@ -45,6 +46,8 @@ def prepare(base_path):
     for page in ROOT.rglob("*.html"):
         original = page.read_text(encoding="utf-8")
         branded = with_site_header(original, brand, show_admin=page == updates)
+        if 'rel="icon"' not in branded:
+            branded = branded.replace("</head>", FAVICON + "\n</head>", 1)
         html = ATTR_PATH.sub(
             lambda match: match[0] if branded.startswith(prefix[1:], match.end())
             else match[1] + prefix,
