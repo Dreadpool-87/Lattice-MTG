@@ -16,6 +16,8 @@ SOURCE = "https://scryfall.com/docs/api/bulk-data"
 TOKEN_LAYOUTS = {"token", "double_faced_token", "emblem"}
 STATS = ("power", "toughness", "loyalty", "defense")
 PRINTING_VARIANTS_VERSION = 1
+DECK_DATA_VERSION = 1
+RELATED_COMPONENTS = {"token", "meld_part", "meld_result", "combo_piece"}
 
 
 def printing_variants(raw):
@@ -81,6 +83,7 @@ def build(dist, catalog_path, print_path, metadata):
     cards = {}
     tokens = []
     previous = {}
+    related_parts = {}
     data = dist / "data"
     for path in data.glob("cards-*.json"):
         for cid, card in json.loads(path.read_text()).items():
@@ -125,6 +128,12 @@ def build(dist, catalog_path, print_path, metadata):
                   "cardColors": raw.get("colors", []), "colorIdentity": raw.get("color_identity", [])}
         if raw.get("cmc") is not None:
             common["catalogManaValue"] = raw["cmc"]
+        if raw.get("produced_mana") is not None:
+            common["producedMana"] = raw["produced_mana"]
+        related_parts[oid] = [
+            part for part in (raw.get("all_parts") or [])
+            if part["component"] in RELATED_COMPONENTS and part["name"] != raw["name"]
+        ]
         compact[oid] = {**common, "faces": concise, "legality": dict(statuses)}
         cards[oid] = (cid, {**common, "faces": faces, "snapshotLegality": {"legality": dict(statuses)},
                            "setCodes": []})
@@ -142,6 +151,8 @@ def build(dist, catalog_path, print_path, metadata):
     by_oracle = defaultdict(set)
     by_set = defaultdict(set)
     set_names = {}
+    related_printing_ids = {part["id"] for parts in related_parts.values() for part in parts}
+    related_identities = defaultdict(set)
     for raw in records(print_path, all_meta):
         code = raw["set"].upper()
         set_names[code] = raw["set_name"]
@@ -152,6 +163,8 @@ def build(dist, catalog_path, print_path, metadata):
             oid = face.get("oracle_id")
             if not oid:
                 continue
+            if raw["id"] in related_printing_ids:
+                related_identities[raw["id"]].add(oid)
             row = (raw["id"], oid, code, raw["collector_number"], raw["lang"],
                    face.get("printed_name") or face.get("flavor_name") or face["name"],
                    ", ".join(raw.get("finishes", [])), int(token))
@@ -164,6 +177,20 @@ def build(dist, catalog_path, print_path, metadata):
             if not token:
                 by_oracle[oid[:2]].add(row)
             by_set[oid].add(code)
+
+    local_ids = set(cards) | {token["oracleId"] for token in tokens}
+    for oid, parts in related_parts.items():
+        related = {}
+        for part in parts:
+            targets = related_identities[part["id"]] & local_ids
+            target = next(iter(targets)) if len(targets) == 1 else None
+            if target == oid:
+                continue
+            entry = {"name": part["name"], "component": part["component"]}
+            entry.update({"oracleId": target} if target else {"printingId": part["id"]})
+            related[(part["component"], target or part["name"])] = entry
+        if related:
+            cards[oid][1]["relatedCards"] = list(related.values())
 
     # Rebuild generated directories to clear routes removed from this snapshot.
     for name in ("cards", "lookup"):
@@ -214,6 +241,7 @@ def build(dist, catalog_path, print_path, metadata):
     save(data / "meta.json", {
         "cards": len(cards), "faces": sum(len(c["faces"]) for _, c in cards.values()),
         "sets": sum(len(card["setCodes"]) for _, card in cards.values()), "snapshot": snapshot,
+        "deckDataVersion": DECK_DATA_VERSION,
         "source": SOURCE, "download": oracle_meta["jsonl_download_uri"], "sha256": digest,
     })
     publish_lookup(dist, lookup, len(cards), snapshot, oracle_meta["updated_at"], SOURCE, digest)

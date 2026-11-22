@@ -10,6 +10,7 @@ from build_rulings import fetch
 
 SETS_URL = "https://api.scryfall.com/sets"
 SET_CODE = re.compile(r"[a-z0-9]+")
+SET_TYPE = re.compile(r"[a-z0-9_]+")
 ARTICLE_ID = re.compile(r'<article id="([0-9a-f-]+)">')
 NUMBER_PARTS = re.compile(r"(\d+)")
 
@@ -29,6 +30,10 @@ def page(title, stylesheet, navigation, content):
 
 def save_json(path, value):
     path.write_text(json.dumps(value, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+
+
+def type_label(set_type):
+    return set_type.replace("_", " ").title()
 
 
 def card_list(path, names, catalog):
@@ -67,6 +72,8 @@ def publish(dist, cached):
     snapshot = metadata["snapshot"]
     metadata_snapshot = cached["snapshot"]
     release_dates = cached["releaseDates"]
+    set_details = cached.get("setDetails", {})
+    codes = set(metadata["setShards"])
     names = {row[2]: row[1] for row in json.loads((data / "index.json").read_text(encoding="utf-8"))}
     with gzip.open(data / "tokens.json.gz", "rt", encoding="utf-8") as stream:
         names.update({token["oracleId"]: token["name"] for token in json.load(stream)})
@@ -86,6 +93,17 @@ def publish(dist, cached):
         released = release_dates.get(slug)
         cards = card_list(printings / f"set-{slug}.json.gz", names, catalog)
         summary = {"code": code, "name": name, "released": released, "entries": len(cards)}
+        details = set_details.get(slug, {})
+        set_type = details.get("type")
+        parent = details.get("parent", "").upper()
+        parent_link = ""
+        if set_type:
+            summary["setType"] = set_type
+        if parent:
+            summary["parentSetCode"] = parent
+            if parent in codes and parent != code:
+                parent_name = escape(metadata["setNames"][parent])
+                parent_link = f' · Parent set <a href="../{parent.lower()}/">{parent_name} ({parent})</a>'
         sets.append({**summary, "url": f"{slug}/", "json": f"{slug}/index.json"})
 
         folder = output / slug
@@ -97,10 +115,11 @@ def publish(dist, cached):
             for card in cards
         )
         release = f" · Release date {escape(released)}" if released else ""
+        classification = f" · {escape(type_label(set_type))}" if set_type else ""
         (folder / "index.html").write_text(page(
             f"{name} ({code})", "../../styles.css",
             '<p><a href="../../">Lattice MTG</a> · <a href="../">All sets</a></p>',
-            f'<p>{len(cards):,} card entries{release} · Printing snapshot {escape(snapshot)}</p>'
+            f'<p>{len(cards):,} card entries{release}{classification}{parent_link} · Printing snapshot {escape(snapshot)}</p>'
             '<p>Language variants with the same collector number and Oracle ID share one row. '
             '<a href="index.json">Set JSON</a></p>'
             f'<ul>{rows}</ul>',
@@ -110,6 +129,24 @@ def publish(dist, cached):
         "snapshot": snapshot, "metadataSnapshot": metadata_snapshot,
         "metadataSource": SETS_URL, "sets": sets,
     })
+    by_type = defaultdict(list)
+    for entry in sets:
+        if entry.get("setType"):
+            by_type[entry["setType"]].append(entry)
+    type_links = " ".join(
+        f'<a href="type-{kind}.html">{escape(type_label(kind))}</a>' for kind in sorted(by_type)
+    )
+    if type_links:
+        type_links = f'<details><summary>Filter by set type</summary><nav class="alphabet" aria-label="Set types">{type_links}</nav></details>'
+    for kind, entries in sorted(by_type.items()):
+        rows = "".join(
+            f'<li><a href="{entry["url"]}">{escape(entry["name"])} ({entry["code"]})</a></li>' for entry in entries
+        )
+        (output/f"type-{kind}.html").write_text(page(
+            type_label(kind) + " sets", "../styles.css",
+            '<p><a href="./">All sets</a></p>',
+            f'<p>{len(entries):,} sets</p><ul>{rows}</ul>',
+        ), encoding="utf-8")
     groups = defaultdict(list)
     for entry in sets:
         groups[entry["code"][0]].append(entry)
@@ -129,7 +166,7 @@ def publish(dist, cached):
         f'<p>{len(sets):,} sets from the {escape(snapshot)} printing snapshot. '
         f'Set metadata snapshot {escape(metadata_snapshot)}. '
         '<a href="index.json">Set index JSON</a></p>'
-        f'<nav class="alphabet" aria-label="First character of set code">{jumps}</nav>'
+        f'{type_links}<nav class="alphabet" aria-label="First character of set code">{jumps}</nav>'
         + "\n".join(sections),
     ), encoding="utf-8")
     print(f"Published {len(sets):,} sets from the {snapshot} printing snapshot")
@@ -142,4 +179,9 @@ def download():
     releases = {entry["code"]: entry.get("released_at") for entry in upstream["data"]}
     if len(releases) != len(upstream["data"]):
         raise ValueError("Duplicate Scryfall set code")
-    return {"snapshot": datetime.now(timezone.utc).date().isoformat(), "releaseDates": releases}
+    details = {
+        entry["code"]: {"type": entry["set_type"],
+                        **({"parent": entry["parent_set_code"]} if entry.get("parent_set_code") else {})}
+        for entry in upstream["data"]
+    }
+    return {"snapshot": datetime.now(timezone.utc).date().isoformat(), "releaseDates": releases, "setDetails": details}

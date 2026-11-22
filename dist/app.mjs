@@ -1,6 +1,6 @@
 import {search} from "./search.mjs";
 import {showPrintingPanel} from "./printing-panel.mjs";
-import {readGzipJson} from "./printings.mjs";
+import {readGzipJson, scryfallUrl} from "./printings.mjs";
 
 const el = id => document.getElementById(id);
 const detail = el("detail");
@@ -176,6 +176,12 @@ function renderCard() {
     <article class="face"><div class="facedata"><h3>${escape(f.type)}</h3><div class="mana" aria-label="Mana cost">${mana}</div></div>
     <div class="rules">${f.text.map(line=>`<p>${escape(line)}</p>`).join("")}</div>${f.keywords.length ? `<details><summary>Source labels</summary><div class="tags">${tags(f.keywords)}</div></details>` : ""}<p class="hint">${attributes.join(" · ")}</p></article>
     ${links.length ? `<section class="block"><h3>Interactions</h3>${links.map(({target,note})=>`<div class="rel"><button data-related="${target.card}" data-position="${target.face}">${escape(target.name)}</button><p class="hint">${escape(note)}</p></div>`).join("")}</section>` : ""}
+    ${card.relatedCards?.length ? `<details class="block"><summary>Related cards (${card.relatedCards.length})</summary><ul>
+      ${card.relatedCards.map(({name, component, oracleId, printingId}) => {
+        const url = oracleId ? "/?card=" + encodeURIComponent(oracleId) : scryfallUrl(printingId);
+        const label = {token: "Token or emblem", meld_part: "Meld part", meld_result: "Meld result", combo_piece: "Related card"}[component];
+        return `<li>${url ? `<a href="${escape(url)}">${escape(name)}</a>` : escape(name)} · ${escape(label)}</li>`;
+      }).join("")}</ul></details>` : ""}
     ${observations.length ? `<details class="block"><summary>Heuristic tags (${observations.length})</summary><p class="hint">Unverified text matches. Check the Oracle text.</p><div class="tags">${tags(observations.map(e=>e.kind+" · "+e.target))}</div></details>` : ""}
     <details class="block"><summary>Set codes (${card.setCodes.length})</summary><div class="tags">${tags(card.setCodes.map(code=>code.toUpperCase()))}</div></details>
     ${card.isToken ? '<p class="hint">Tokens and emblems are tracked separately from deck inventory.</p>' :
