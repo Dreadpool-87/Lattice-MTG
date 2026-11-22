@@ -1,4 +1,5 @@
 import {loadCardPrintings, scryfallUrl} from "./printings.mjs";
+import {printingVariantLabels} from "./printing-variants.mjs";
 
 function node(tag, value, className) {
   const element = document.createElement(tag);
@@ -36,12 +37,13 @@ function drawPrintings(panel, records) {
     list.replaceChildren(...visible.slice(offset, offset + pageSize).map(record => {
       const item = node("li", undefined, "printing-entry");
       const title = node("strong", `${record.setCode} #${record.collectorNumber}${record.setName ? " · " + record.setName : ""}`);
-      const metadata = node("p", [record.printedName, record.language, ...record.finishes].filter(Boolean).join(" · "), "hint");
+      const variants = (record.variants ?? []).map(variant => printingVariantLabels.get(variant));
+      const metadata = [record.printedName, record.language, ...record.finishes, ...variants];
       const link = node("a", "View on Scryfall");
       link.href = scryfallUrl(record.printingId);
       link.target = "_blank";
       link.rel = "noopener";
-      item.append(title, metadata, link);
+      item.append(title, node("p", metadata.filter(Boolean).join(" · "), "hint"), link);
       return item;
     }));
     label.textContent = visible.length

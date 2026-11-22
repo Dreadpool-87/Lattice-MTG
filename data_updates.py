@@ -2,6 +2,7 @@
 import argparse
 from datetime import datetime, timezone
 import gzip
+from html import escape
 import json
 import lzma
 from pathlib import Path
@@ -112,13 +113,29 @@ def render_entry(entry):
             for field in ("added", "changed", "removed")
         )
         rows.append(f'<tr><th scope="row">{label}</th>{cells}</tr>')
+    note = entry.get("note")
     return (
         f'<article><h2><time datetime="{timestamp.isoformat()}">{date}</time></h2>'
         f'<table class="update-counts" aria-label="Data changes on {date}">'
         '<thead><tr><th scope="col">Dataset</th><th scope="col">Added</th>'
         '<th scope="col">Changed</th><th scope="col">Removed</th></tr></thead>'
-        f'<tbody>{"".join(rows)}</tbody></table></article>'
+        f'<tbody>{"".join(rows)}</tbody></table>'
+        + (f'<p>{escape(note)}</p>' if note else "")
+        + '</article>'
     )
+
+
+def render_history(history):
+    content = (
+        '<p>Changes in each published Scryfall refresh. Only refreshes with changes to the '
+        'datasets below are listed.</p><p><a href="history.json">History JSON</a></p>'
+        + "".join(map(render_entry, history))
+        + '<p>Each changed Oracle card is counted once. Changes can include rules text, format '
+        'legality, or card data such as produced mana and related cards. Printing changes can '
+        'include finishes and variants. Set changes cover names and release dates. Rulings are '
+        'compared by card, date and text, so a rewritten ruling counts as one removal and one addition.</p>'
+    )
+    return page("Data updates", "../styles.css", '<p><a href="../">Lattice MTG</a></p>', content)
 
 
 def main():
@@ -137,18 +154,7 @@ def main():
     history.insert(0, {"recordedAt": timestamp.isoformat(timespec="seconds"), "changes": changes})
     OUTPUT.mkdir(exist_ok=True)
     history_path.write_text(json.dumps(history, indent=2) + "\n", encoding="utf-8")
-    content = (
-        '<p>Changes in each published Scryfall refresh. Only refreshes with changes to the '
-        'datasets below are listed.</p><p><a href="history.json">History JSON</a></p>'
-        + "".join(map(render_entry, history))
-        + '<p>Oracle changes cover card records and format legality. Set changes cover names '
-        'and release dates. Rulings are compared by card, date and text, so a rewritten ruling '
-        'counts as one removal and one addition.</p>'
-    )
-    (OUTPUT / "index.html").write_text(
-        page("Data updates", "../styles.css", '<p><a href="../">Lattice MTG</a></p>', content),
-        encoding="utf-8",
-    )
+    (OUTPUT / "index.html").write_text(render_history(history), encoding="utf-8")
 
 
 if __name__ == "__main__":

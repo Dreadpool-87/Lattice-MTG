@@ -2,6 +2,7 @@ import {
   parseCollection, matchCollection, exportText, exportMarkdown, exportTsv, exportHtml, exportJsonl, exportYaml, exportSQLite, states,
 } from "./collection.mjs";
 import {gathererPrintingUrl, gathererSearchUrl, loadPrintingIndex, nameKey, printingStates, readGzipJson, scryfallUrl} from "../printings.mjs";
+import {printingVariantLabels} from "../printing-variants.mjs";
 
 const el = id => document.getElementById(id);
 const format = new Intl.NumberFormat("en");
@@ -13,10 +14,6 @@ let catalog, sqlite, collection, groups = [], cards, page = 0, importId = 0, fil
 let foilColumn = -1;
 
 const isFoil = item => /^(foil|yes|true|1)$/i.test(item.fields[foilColumn]?.trim());
-const variantLabels = {
-  borderless: "Borderless", showcase: "Showcase", extendedart: "Extended Art", fullart: "Full Art",
-  textless: "Textless", promo: "Promo", serialized: "Serialized",
-};
 const variantsFor = item => {
   const {matches} = item.printingCheck;
   return item.printingStatus === "verified" && matches?.length === 1 ? matches[0].record.variants ?? [] : [];
@@ -150,7 +147,8 @@ function rowDetails(group) {
         heading.append(node("span", "Foil", "tag"));
       }
       for (const variant of variantsFor(item)) {
-        if (Object.hasOwn(variantLabels, variant)) heading.append(node("span", variantLabels[variant], "tag"));
+        const label = printingVariantLabels.get(variant);
+        if (label) heading.append(node("span", label, "tag"));
       }
       if (item.printingId || (item.setCode && item.collectorNumber)) {
         const status = node("span", printingStates[item.printingStatus], "tag printing-status");
@@ -215,7 +213,7 @@ function populateFilters(printing) {
   }
   const variants = el("printing-variant");
   variants.replaceChildren(variants.options[0], new Option("Special variants", "any"),
-    ...Object.entries(variantLabels).map(([key, label]) => new Option(label, key)));
+    ...Array.from(printingVariantLabels, ([key, label]) => new Option(label, key)));
   el("printing-variant-filter").hidden = !printing?.variantsVersion;
 }
 
