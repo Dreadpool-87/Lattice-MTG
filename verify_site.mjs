@@ -68,10 +68,15 @@ for (const route of ["browse/", "../data/tokens.json.gz", "../sets/", "../data/r
 }
 
 const homepageBrand = index.match(/<a [^>]*class="brand"[^>]*>.*?<\/a>/)?.[0];
-assert.ok(homepageBrand, "Missing branded homepage link");
+const logoHref = `${basePath}/lattice-spark.svg`;
+assert.ok(homepageBrand?.includes(`src="${logoHref}"`), "Missing Lattice Spark logo");
+assert.equal(resolveLink(logoHref, "index.html"), "lattice-spark.svg");
 for (const path of readdirSync(dist, {recursive: true}).filter(path => path.endsWith(".html"))) {
-  const header = read(path).match(/<header class="sitebar">[\s\S]*?<\/header>/)?.[0];
+  const html = read(path);
+  const header = html.match(/<header class="sitebar">[\s\S]*?<\/header>/)?.[0];
   assert.ok(header?.includes(homepageBrand), `Missing shared Lattice header in ${path}`);
+  assert.ok(html.includes(`rel="icon" type="image/svg+xml" href="${logoHref}"`),
+    `Missing Lattice Spark favicon in ${path}`);
 }
 
 const updates = read("updates/index.html");
