@@ -5,6 +5,7 @@
 <h1>Compact card lookup</h1>
 <p>35,892 Oracle IDs from the 2026-11-21 snapshot. Plain JSON, with at most 8 card records per data response.</p>
 <p id="site-data-snapshots"></p>
+<p><a href="parts/">Browse by card part</a> if you know the name of a Prepare spell, Adventure, or card face.</p>
 <ol>
 <li>Take the full card name. Apply Unicode NFKD, lowercase, and keep only a–z and 0–9. Lightning Bolt becomes <code>lightningbolt</code>. If nothing remains, use <code>other</code> as the full key.</li>
 <li>Fetch its first four characters, or the entire key if shorter, followed by <code>.json</code>. For Lightning Bolt, open <a href="ligh.json"><code>ligh.json</code></a>.</li>
