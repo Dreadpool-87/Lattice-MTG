@@ -1,13 +1,15 @@
 """Apply the site header and adapt links to the GitHub Pages base path."""
 import re
 import sys
+from hashlib import sha256
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent / "dist"
 ATTR_PATH = re.compile(r'((?:href|src)=")/(?!/)')
 CATALOG_LINK = re.compile(r'(href="(?:letter-|p-)[a-z0-9-]+)(?=[#"])')
 MODULE_PATH = re.compile(r"""(["'`])/(?=data/|collection/|\?)""")
-THEME_SCRIPT = '<script src="/theme.js"></script>'
+STYLE_LINK = re.compile(r'(href="[^"?]*/styles\.css)(?:\?v=[0-9a-f]+)?(?=")')
+THEME_SCRIPT = re.compile(r'<script src="[^"?]*/theme\.js(?:\?v=[0-9a-f]+)?"></script>')
 FAVICON = '<link rel="icon" type="image/svg+xml" href="/lattice-spark.svg">'
 BRAND_LINK = re.compile(r'<a [^>]*class="brand"[^>]*>.*?</a>')
 BODY_TAG = re.compile(r"<body(?:\s[^>]*)?>")
@@ -39,6 +41,9 @@ def with_site_header(html, brand, *, show_admin):
 
 def prepare(base_path):
     prefix = base_path.rstrip("/") + "/"
+    style_version = sha256((ROOT / "styles.css").read_bytes()).hexdigest()[:12]
+    theme_version = sha256((ROOT / "theme.js").read_bytes()).hexdigest()[:12]
+    theme_script = f'<script src="/theme.js?v={theme_version}"></script>'
 
     home = (ROOT / "index.html").read_text(encoding="utf-8")
     brand = BRAND_LINK.search(home).group()
@@ -47,8 +52,11 @@ def prepare(base_path):
     for page in ROOT.rglob("*.html"):
         original = page.read_text(encoding="utf-8")
         branded = with_site_header(original, brand, show_admin=page == updates)
-        if not re.search(r'<script src="[^"]*/theme\.js">', branded):
-            branded = branded.replace("</head>", THEME_SCRIPT + "\n</head>", 1)
+        branded = STYLE_LINK.sub(lambda match: f"{match[1]}?v={style_version}", branded)
+        if THEME_SCRIPT.search(branded):
+            branded = THEME_SCRIPT.sub(theme_script, branded, count=1)
+        else:
+            branded = branded.replace("</head>", theme_script + "\n</head>", 1)
         if 'rel="icon"' not in branded:
             branded = branded.replace("</head>", FAVICON + "\n</head>", 1)
         html = ATTR_PATH.sub(
