@@ -71,8 +71,12 @@ const homepageBrand = index.match(/<a [^>]*class="brand"[^>]*>.*?<\/a>/)?.[0];
 const logoHref = `${basePath}/lattice-spark.svg`;
 assert.ok(homepageBrand?.includes(`src="${logoHref}"`), "Missing Lattice Spark logo");
 assert.equal(resolveLink(logoHref, "index.html"), "lattice-spark.svg");
+const themeScript = basePath + "/theme.js";
+assert.equal(resolveLink(themeScript, "index.html"), "theme.js");
 for (const path of readdirSync(dist, {recursive: true}).filter(path => path.endsWith(".html"))) {
   const html = read(path);
+  assert.ok(html.includes('<script src="' + themeScript + '"></script>'),
+    "Missing color theme selector in " + path);
   const header = html.match(/<header class="sitebar">[\s\S]*?<\/header>/)?.[0];
   assert.ok(header?.includes(homepageBrand), `Missing shared Lattice header in ${path}`);
   assert.ok(html.includes(`rel="icon" type="image/svg+xml" href="${logoHref}"`),
