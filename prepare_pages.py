@@ -61,6 +61,7 @@ def with_credits_link(html):
 def build_web_app(prefix):
     style = ROOT / "app" / "mobile.css"
     version = sha256(style.read_bytes()).hexdigest()[:12]
+    sets_version = sha256((ROOT / "app" / "sets.mjs").read_bytes()).hexdigest()[:12]
     for screen, (route, source) in APP_SCREENS.items():
         html = (ROOT / source).read_text(encoding="utf-8")
         if screen == "Sets":
@@ -70,8 +71,34 @@ def build_web_app(prefix):
                 lambda match: f'href="{urljoin(prefix + source, match[1])}"',
                 html,
             )
+            html = html.replace('<main class="wrap static-catalog">', '''<main class="wrap static-catalog">
+<section id="app-set-index">''', 1)
+            html = html.replace("<h1>Browse sets</h1>", '''<h1>Browse sets</h1>
+<div class="app-set-search" hidden>
+  <label for="app-set-query">Find a set</label>
+  <input id="app-set-query" type="search" placeholder="Set name or code">
+  <p id="app-set-count" role="status"></p>
+</div>''', 1)
+            html = html.replace("</main>", '''</section>
+<section id="app-set-detail" hidden></section>
+</main>''', 1)
+            html = html.replace(
+                "</head>",
+                f'<script type="module" src="{prefix}app/sets.mjs?v={sets_version}"></script>\n</head>',
+                1,
+            )
         if screen == "Search":
             html = html.replace('action="/"', f'action="{prefix + route}"', 1)
+        if screen == "Collection":
+            html = html.replace(
+                "Your collection stays in this tab until you clear it, replace it, or close the tab.",
+                "By default, your collection stays in this tab.",
+                1,
+            )
+            html = html.replace('<div class="import-actions">', '''<label class="app-save-collection" hidden>
+  <input type="checkbox" id="save-collection-on-device"> Remember collection on this device
+</label>
+<div class="import-actions">''', 1)
         html = BODY_TAG.sub(
             lambda match: match[0][:-1] + f' data-app-screen="{screen.lower()}">',
             html,
@@ -79,7 +106,9 @@ def build_web_app(prefix):
         )
         html = html.replace(
             "</head>",
-            f'<link rel="stylesheet" href="{prefix}app/mobile.css?v={version}">\n</head>',
+            f'<link rel="stylesheet" href="{prefix}app/mobile.css?v={version}">\n'
+            f'<link rel="manifest" href="{prefix}app/manifest.webmanifest">\n'
+            f'<link rel="apple-touch-icon" href="{prefix}app/icon-192.png">\n</head>',
             1,
         )
         def nav_link(label, target):

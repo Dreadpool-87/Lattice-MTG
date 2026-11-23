@@ -77,8 +77,8 @@ function renderFaces(card, target, showTitle, searchGatherer) {
   const link = node("a", "Open in Card Explorer", "collection-card-link");
   link.setAttribute("aria-label", `Open ${card.name} in Card Explorer`);
   const appSearch = document.querySelector(".app-nav a");
-  const target = "?card=" + encodeURIComponent(card.oracleId);
-  link.href = appSearch ? new URL(target, appSearch.href).href : "/?card=" + encodeURIComponent(card.oracleId);
+  const cardQuery = "?card=" + encodeURIComponent(card.oracleId);
+  link.href = appSearch ? new URL(cardQuery, appSearch.href).href : "/?card=" + encodeURIComponent(card.oracleId);
   actions.append(link);
   if (searchGatherer) {
     const gatherer = externalLink("Search Gatherer", gathererSearchUrl(card.name));
@@ -356,6 +356,28 @@ const importStatus = el("import-status");
 const retryImport = el("retry-import");
 const clearCollection = el("clear-collection");
 const sessionStatus = el("session-status");
+const rememberCollection = el("save-collection-on-device");
+const deviceKey = "lattice.collection.device.v1";
+let currentSource;
+
+function rememberOnDevice() {
+  if (!rememberCollection) return;
+  try {
+    if (rememberCollection.checked && currentSource) {
+      localStorage.setItem(deviceKey, JSON.stringify(currentSource));
+    } else if (!rememberCollection.checked) {
+      localStorage.removeItem(deviceKey);
+    }
+  } catch {
+    sessionStatus.textContent = "This browser could not update the copy saved on this device.";
+  }
+}
+
+rememberCollection?.closest("label").removeAttribute("hidden");
+rememberCollection?.addEventListener("change", () => {
+  sessionStatus.textContent = "";
+  rememberOnDevice();
+});
 
 function removeSavedCollection() {
   try {
@@ -455,6 +477,8 @@ async function importCollection(selected, restoring = false) {
         ? ""
         : "This browser could not save the collection for reloads in this tab.";
     }
+    currentSource = {name: selected.name, csv};
+    if (!restoring && rememberCollection?.checked) rememberOnDevice();
     importStatus.textContent = `Imported ${selected.name}`;
     el("export-status").textContent = "";
     render();
@@ -560,15 +584,38 @@ clearCollection.addEventListener("click", () => {
   sessionStatus.textContent = removeSavedCollection()
     ? ""
     : "This browser could not clear the saved copy for this tab.";
+  currentSource = undefined;
+  if (rememberCollection) rememberCollection.checked = false;
+  rememberOnDevice();
 });
 
+let savedForDevice;
+if (rememberCollection) {
+  try {
+    savedForDevice = JSON.parse(localStorage.getItem(deviceKey));
+    if (typeof savedForDevice?.name === "string" && typeof savedForDevice.csv === "string") {
+      rememberCollection.checked = true;
+    } else {
+      savedForDevice = undefined;
+    }
+  } catch {
+    // Collection import works when device storage is unavailable.
+  }
+}
+
+let savedForTab;
 try {
   const saved = sessionStorage.getItem(sessionKey);
   if (saved) {
     const {name, csv} = JSON.parse(saved);
     if (typeof name !== "string" || typeof csv !== "string") throw new Error("Invalid saved collection.");
-    void importCollection({name, text: () => csv}, true);
+    savedForTab = {name, csv};
   }
 } catch {
   removeSavedCollection();
+}
+const savedCollection = savedForTab ?? savedForDevice;
+if (savedCollection) {
+  const {name, csv} = savedCollection;
+  void importCollection({name, text: () => csv}, true);
 }

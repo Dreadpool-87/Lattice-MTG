@@ -17,7 +17,9 @@ Choose a format and select **Download**. The download uses the whole imported co
 
 ## Mobile web app
 
-Open the [Lattice web app](https://dreadpool-87.github.io/Lattice-MTG/app/) on your phone. The bottom bar switches between Search, Sets, and Collection. The preview shares the site's card search, set index, print verification, and Delver Lens import and export. Set details open in the full catalog.
+Open the [Lattice web app](https://dreadpool-87.github.io/Lattice-MTG/app/) on your phone. The bottom bar switches between Search, Sets, and Collection. Find sets by name or code and open their details in the app. The preview shares the site's card search, set index, print verification, and Delver Lens import and export.
+
+In Collection, enable **Remember collection on this device** to reopen your CSV in the same browser later. Turning it off removes the device copy. **Clear collection** also removes the current collection. On Android, use your browser's home-screen option to launch Lattice from its own icon.
 
 The Pages build generates the app screens from the corresponding site pages, so both use the same data snapshots and scripts.
 

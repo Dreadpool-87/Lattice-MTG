@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
@@ -58,6 +59,9 @@ const expected = json("lookup/integrity/li.json").files[boltFile].sha256;
 assert.equal(createHash("sha256").update(read(`lookup/${boltFile}`)).digest("hex"), expected);
 
 const index = read("index.html");
+for (const entry of ["app.mjs", "app/sets.mjs", "collection/page.mjs"]) {
+  execFileSync(process.execPath, ["--check", join(dist, entry)]);
+}
 const creditsPath = "credits/index.html";
 for (const page of ["index.html", "cards/index.html", "sets/index.html", "lookup/index.html", "collection/index.html", "updates/index.html"]) {
   const links = [...read(page).matchAll(/class="site-credits-link" href="([^"]+)"/g)];
@@ -91,10 +95,20 @@ for (const [route, screen, sharedAsset] of [
   assert.ok(html.includes(`data-app-screen="${screen}"`));
   assert.ok(html.includes(`${basePath}${sharedAsset}`));
   assert.ok(html.includes(`${basePath}/app/mobile.css?v=`));
+  assert.ok(html.includes(`href="${basePath}/app/manifest.webmanifest"`));
   for (const [, href] of nav.matchAll(/href="([^"]+)"/g)) resolveLink(href, file);
 }
 assert.ok(read("app/index.html").includes(`action="${basePath}/app/"`));
 assert.ok(read("app/sets/index.html").includes(`href="${basePath}/sets/m19/"`));
+assert.match(read("app/sets/index.html"), /id="app-set-query"[\s\S]*id="app-set-detail"/);
+assert.match(read("app/collection/index.html"), /id="save-collection-on-device"/);
+assert.doesNotMatch(read("collection/index.html"), /id="save-collection-on-device"/);
+const manifestFile = "app/manifest.webmanifest";
+const manifest = json(manifestFile);
+assert.equal(resolveLink(manifest.start_url, manifestFile), "app/index.html");
+assert.equal(resolveLink(manifest.scope, manifestFile), "app/index.html");
+assert.equal(manifest.display, "standalone");
+for (const {src} of manifest.icons) resolveLink(src, manifestFile);
 const catalog = read("cards/index.html");
 const setLink = catalog.match(/<a href="([^"]+)" class="start-option catalog-set-link">/);
 assert.ok(setLink, "Missing Browse by set tile in the card catalog");
