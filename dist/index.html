@@ -23,29 +23,32 @@
       <p>Look up card faces, Oracle text, and format legality.</p>
       <form id="search" action="/" role="search">
         <label for="query" class="sr">Search cards</label>
-        <input type="search" id="query" name="q" placeholder="Card name, Oracle ID, or rules text…" autocomplete="off">
+        <input type="search" id="query" name="q" placeholder="Card name or Oracle ID…" autocomplete="off">
         <button class="primary">Search</button>
       </form>
-      <div class="controls">
-        <label>Search in <select id="scope"><option value="name">Card name or ID</option><option value="oracle">Oracle text</option></select></label>
-        <label>Sort by <select id="sort"><option value="relevance">Relevance</option><option value="commander">Popular in Commander (EDHREC)</option></select></label>
+      <fieldset id="scope" class="scope-options">
+        <legend class="sr">Search in</legend>
+        <label><input type="radio" id="scope-name" name="scope" value="name" checked><span>Name or ID</span></label>
+        <label><input type="radio" id="scope-oracle" name="scope" value="oracle"><span>Oracle text</span></label>
+      </fieldset>
+      <div id="examples" class="examples" hidden>
+        <span>Try</span>
+        <button type="button" data-query="Lightning Bolt">Lightning Bolt</button>
+        <button type="button" data-query="Sol Ring">Sol Ring</button>
+        <button type="button" data-query="Draw a card" data-scope="oracle">Draw a card</button>
       </div>
       <noscript><p>Use the <a href="/cards/">text catalog</a> to look up cards without JavaScript.</p></noscript>
     </section>
     <section id="start" aria-label="Explore Lattice">
       <div class="start-actions">
         <a href="/collection/" class="start-option start-collection">
-          <h2>Import collection</h2>
-          <p>Open your Delver Lens CSV and export your collection with Oracle data.</p>
+          <h2 id="collection-title">Import collection</h2>
+          <p id="collection-description">Open a Delver Lens CSV and export your cards with Oracle data.</p>
         </a>
-        <a href="/cards/" class="start-option">
-          <h2>Browse card catalog</h2>
-          <p>Find cards alphabetically or by set.</p>
-        </a>
-        <a href="/lookup/" class="start-option">
-          <h2>JSON lookup</h2>
-          <p>Get compact card records for tools and AI agents.</p>
-        </a>
+        <div class="start-links">
+          <a href="/cards/">Browse catalog</a>
+          <a href="/lookup/">JSON lookup</a>
+        </div>
       </div>
       <dl class="metrics explorer-metrics">
         <div><dt>Cards</dt><dd>35,892</dd></div>
@@ -55,7 +58,15 @@
     </section>
     <div class="grid" id="workspace" hidden>
       <section class="panel" aria-labelledby="results-heading">
-        <header class="panelbar"><h2 id="results-heading">Search results</h2><span id="status" role="status"></span></header>
+        <header class="panelbar result-controls">
+          <div><h2 id="results-heading" tabindex="-1">Search results</h2><span id="status" role="status"></span></div>
+          <label id="result-sort" hidden>Sort by <select id="sort">
+            <option value="relevance">Relevance</option>
+            <option value="name-asc">Name A–Z</option>
+            <option value="name-desc">Name Z–A</option>
+            <option value="commander">Commander (EDHREC)</option>
+          </select></label>
+        </header>
         <ul id="results"></ul>
         <nav id="paging" aria-label="Search result pages" hidden><button id="prev">Previous</button><span id="page"></span><button id="next">Next</button></nav>
       </section>
