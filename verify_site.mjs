@@ -59,7 +59,7 @@ const expected = json("lookup/integrity/li.json").files[boltFile].sha256;
 assert.equal(createHash("sha256").update(read(`lookup/${boltFile}`)).digest("hex"), expected);
 
 const index = read("index.html");
-for (const entry of ["app.mjs", "app/sets.mjs", "app/install.mjs", "collection/page.mjs"]) {
+for (const entry of ["app.mjs", "app/sets.mjs", "app/install.mjs", "app/routes.mjs", "collection/page.mjs"]) {
   execFileSync(process.execPath, ["--check", join(dist, entry)]);
 }
 const creditsPath = "credits/index.html";
@@ -99,6 +99,11 @@ for (const [route, screen, sharedAsset] of [
   for (const [, href] of nav.matchAll(/href="([^"]+)"/g)) resolveLink(href, file);
 }
 assert.ok(read("app/index.html").includes(`action="${basePath}/app/"`));
+assert.ok(read("app/index.html").includes(`href="${basePath}/app/collection/" class="start-option start-collection"`));
+assert.ok(read("app/index.html").includes(`href="${basePath}/app/catalog/">Browse catalog`));
+assert.ok(read("app/catalog/index.html").includes('data-app-screen="catalog"'));
+assert.ok(read("app/catalog/index.html").includes('class="app-nav"'));
+assert.ok(read("app/catalog/index.html").includes(`src="${basePath}/app/routes.mjs?v=`));
 assert.ok(read("app/index.html").includes(`src="${basePath}/app/install.mjs?v=`));
 assert.match(read("app/index.html"), /id="app-install-button" hidden/);
 assert.match(read("app/index.html"), /id="app-install-help"/);
