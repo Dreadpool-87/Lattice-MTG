@@ -63,15 +63,18 @@ def build_web_app(prefix):
     version = sha256(style.read_bytes()).hexdigest()[:12]
     sets_version = sha256((ROOT / "app" / "sets.mjs").read_bytes()).hexdigest()[:12]
     install_version = sha256((ROOT / "app" / "install.mjs").read_bytes()).hexdigest()[:12]
-    for screen, (route, source) in APP_SCREENS.items():
+    routes_version = sha256((ROOT / "app" / "routes.mjs").read_bytes()).hexdigest()[:12]
+    screens = {**APP_SCREENS, "Catalog": ("app/catalog/", "cards/index.html")}
+    for screen, (route, source) in screens.items():
         html = (ROOT / source).read_text(encoding="utf-8")
-        if screen == "Sets":
-            # Keep links to the existing set pages while anchors scroll within the app.
+        if screen in {"Sets", "Catalog"}:
+            # Resolve source-relative assets and links before moving the page under /app/.
             html = re.sub(
                 r'href="(?![/#]|[\w+.-]+:)([^"]+)"',
                 lambda match: f'href="{urljoin(prefix + source, match[1])}"',
                 html,
             )
+        if screen == "Sets":
             html = html.replace('<main class="wrap static-catalog">', '''<main class="wrap static-catalog">
 <section id="app-set-index">''', 1)
             html = html.replace("<h1>Browse sets</h1>", '''<h1>Browse sets</h1>
@@ -90,6 +93,8 @@ def build_web_app(prefix):
             )
         if screen == "Search":
             html = html.replace('action="/"', f'action="{prefix + route}"', 1)
+            html = html.replace(f'href="{prefix}collection/"', f'href="{prefix}app/collection/"')
+            html = html.replace(f'href="{prefix}cards/"', f'href="{prefix}app/catalog/"')
             html = html.replace("<!-- app-install -->", '''<div id="app-install">
     <button type="button" id="app-install-button" hidden>Install app</button>
     <details id="app-install-help">
@@ -121,6 +126,7 @@ def build_web_app(prefix):
             "</head>",
             f'<link rel="stylesheet" href="{prefix}app/mobile.css?v={version}">\n'
             f'<link rel="manifest" href="{prefix}app/manifest.webmanifest">\n'
+            f'<script type="module" src="{prefix}app/routes.mjs?v={routes_version}"></script>\n'
             f'<link rel="apple-touch-icon" href="{prefix}app/icon-192.png?v=web">\n</head>',
             1,
         )
