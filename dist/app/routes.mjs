@@ -62,6 +62,35 @@ async function openCatalogPage(main, path) {
 
 // Prepare static links immediately, then handle links rendered by search and collection.
 routeLinks(document, location.href);
+
+const searchStateKey = "lattice.web.search.v1";
+const searchTab = document.querySelector(".app-nav a");
+if (document.body.dataset.appScreen === "search") {
+  window.addEventListener("pagehide", () => {
+    try {
+      const params = new URLSearchParams(location.search);
+      for (const key of [...params.keys()]) {
+        if (!["q", "card", "scope", "sort"].includes(key)) params.delete(key);
+      }
+      sessionStorage.setItem(searchStateKey, params.toString());
+    } catch {
+      // The app still works when tab storage is unavailable.
+    }
+  });
+} else if (searchTab) {
+  const restoreSearchLink = () => {
+    try {
+      const target = new URL(appRoot);
+      target.search = sessionStorage.getItem(searchStateKey) ?? "";
+      searchTab.href = target.href;
+    } catch {
+      // The default Search link still works.
+    }
+  };
+  restoreSearchLink();
+  window.addEventListener("pageshow", restoreSearchLink);
+}
+
 document.addEventListener("click", event => {
   const link = event.target.closest?.("a[href]");
   if (link && !link.hasAttribute("download")) link.href = appDestination(new URL(link.href));
