@@ -49,10 +49,13 @@ The pre-publication check verifies representative links, card lookups, snapshot 
 
 ## Credits and licensing
 
+[Credits & Licensing on Lattice MTG](https://dreadpool-87.github.io/Lattice-MTG/credits/) lists the project's data sources and third-party notices.
+
 - [Scryfall](https://scryfall.com/) supplies the [bulk card and ruling data](https://scryfall.com/docs/api/bulk-data) and [set metadata](https://scryfall.com/docs/api/sets).
+- [EDHREC](https://edhrec.com/) supplies the Commander popularity ranks included in Scryfall card records.
 - [MTGJSON](https://mtgjson.com/) supplied data used by the original build, via [MTGJSON-slim](https://github.com/Dreadpool-87/MTGJSON-slim). The current data refresh uses Scryfall.
 - [sql.js](https://github.com/sql-js/sql.js) enables SQLite exports in the browser. The bundled copy retains its [MIT license](dist/collection/vendor/LICENSE.sql.js).
 
-Lattice MTG is unofficial Fan Content under the [Wizards of the Coast Fan Content Policy](https://company.wizards.com/en/legal/fancontentpolicy). Wizards has not approved or endorsed this project. Portions of the materials, including Magic: The Gathering card content, are property of Wizards of the Coast.
+Lattice MTG is an unofficial Magic: The Gathering fan project. Wizards of the Coast has not approved, endorsed, or sponsored it. Portions of the materials used belong to Wizards of the Coast. © Wizards of the Coast LLC. See the [Fan Content Policy](https://company.wizards.com/en/legal/fancontentpolicy).
 
 The Lattice MTG source code currently has no project-wide license. Third-party code and data retain their respective notices and terms.

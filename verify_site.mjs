@@ -58,6 +58,17 @@ const expected = json("lookup/integrity/li.json").files[boltFile].sha256;
 assert.equal(createHash("sha256").update(read(`lookup/${boltFile}`)).digest("hex"), expected);
 
 const index = read("index.html");
+const creditsPath = "credits/index.html";
+for (const page of ["index.html", "cards/index.html", "sets/index.html", "lookup/index.html", "collection/index.html", "updates/index.html"]) {
+  const links = [...read(page).matchAll(/class="site-credits-link" href="([^"]+)"/g)];
+  assert.equal(links.length, 1, `Expected one credits link on ${page}`);
+  assert.equal(resolveLink(links[0][1], page), creditsPath);
+}
+const credits = read(creditsPath);
+const licenseHref = `${basePath}/collection/vendor/LICENSE.sql.js`;
+assert.ok(credits.includes(`href="${licenseHref}"`), "Missing bundled sql.js license link");
+assert.match(read(resolveLink(licenseHref, creditsPath)), /MIT License/i);
+
 for (const route of ["cards/", "collection/", "lookup/", "updates/"]) {
   const href = `${basePath}/${route}`;
   assert.ok(index.includes(`href="${href}"`), `Missing homepage link ${href}`);
