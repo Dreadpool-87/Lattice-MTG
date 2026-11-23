@@ -15,15 +15,12 @@ Choose a format and select **Download**. The download uses the whole imported co
 - **TSV** is a compact index of confirmed, playable cards with one row per Oracle identity. **TSV with Oracle text** adds mana costs and rules text for all parts of each card on the same row. In those two columns, backslashes, tabs, and line breaks use the escapes `\\\\`, `\\t`, `\\n`, and `\\r`.
 - **JSON, JSON Lines, YAML, SQLite** retain imported rows, printing checks, and card records. YAML uses the same collection structure as JSON. The JSON Lines file is UTF-8 and starts with a `{"type":"collection","data":…}` metadata record, followed by `item` records in import order and `card` records for the linked Oracle identities.
 
-## Mobile web app
+## Web app
 
-Open the [Lattice web app](https://dreadpool-87.github.io/Lattice-MTG/app/) on your phone. The bottom bar switches between Search, Sets, and Collection. Find sets by name or code and open their details in the app. The preview shares the site's card search, set index, print verification, and Delver Lens import and export.
+Open [Lattice Web](https://dreadpool-87.github.io/Lattice-MTG/app/) for Search, Sets, and Collection in a mobile layout. Search remembers the query and selected card when you switch tabs. **Remember collection on this device** keeps your imported CSV in the same browser for later visits.
 
-In Collection, enable **Remember collection on this device** to reopen your CSV in the same browser later. Turning it off removes the device copy. **Clear collection** also removes the current collection.
-
-On Android, choose **Install app** from the web app's Search screen. When the browser uses its own menu for installation, the app shows where to find the command. Lattice opens in a standalone window on supported browsers.
-
-The Pages build generates the app screens from the corresponding site pages, so both use the same data snapshots and scripts.
+- **Android** · Tap **Install app** or use your browser's install menu.
+- **iPhone** · In Safari, tap **Share → Add to Home Screen**, then enable **Open as Web App** when shown.
 
 ## Set index
 
@@ -39,7 +36,7 @@ For machine lookup, use the first two characters of an Oracle ID as the filename
 
 ## Updates and hosting
 
-[GitHub Pages](https://dreadpool-87.github.io/Lattice-MTG/) hosts the site. The [Publish Lattice MTG workflow](https://github.com/Dreadpool-87/Lattice-MTG/actions/workflows/pages.yml) refreshes data every Sunday at **06:15 UTC during Belgian standard time** and **05:15 UTC during Belgian daylight saving time**. It checks the paired Oracle Cards and All Cards exports for cards, rules text, format legality and printings, and refreshes set release dates and official rulings. It skips publication when the data is unchanged and leaves the last verified version online if a refresh fails. The site shows the next scheduled check in the visitor’s local time.
+[GitHub Pages](https://dreadpool-87.github.io/Lattice-MTG/) hosts the site and web app. The [Publish Lattice MTG workflow](https://github.com/Dreadpool-87/Lattice-MTG/actions/workflows/pages.yml) checks for new data every Sunday at **07:15 Belgian time** (06:15 UTC during standard time or 05:15 UTC during daylight saving time). It checks the paired Oracle Cards and All Cards exports and updates card data, printings, set metadata, and official rulings. It publishes changed data and keeps the last verified version online if a refresh fails. The site shows the next check in the visitor’s local time. Published data changes appear in the [Archive log](https://dreadpool-87.github.io/Lattice-MTG/updates/).
 
 To refresh outside the schedule, run **Publish Lattice MTG** from `main` in GitHub Actions with **Refresh all Scryfall data before publishing** selected. The workflow also publishes after pushes to `main` using the committed data. This regular build can run without contacting Scryfall.
 

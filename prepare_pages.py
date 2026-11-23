@@ -99,7 +99,7 @@ def build_web_app(prefix):
     <button type="button" id="app-install-button" hidden>Install app</button>
     <details id="app-install-help">
       <summary>Install app</summary>
-      <p>In your browser menu, choose Install app or Add to Home Screen.</p>
+      <p>Android: choose Install app or Add to Home Screen from your browser menu. On iPhone: in Safari, choose Share → Add to Home Screen, then enable Open as Web App when shown.</p>
     </details>
   </div>''', 1)
             html = html.replace(
