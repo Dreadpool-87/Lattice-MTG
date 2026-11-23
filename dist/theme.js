@@ -46,6 +46,11 @@
     options.setAttribute("aria-label", "Color theme");
     const buttons = new Map();
     let nextColor = 0;
+    let revealTimer;
+    const announcement = document.createElement("p");
+    announcement.className = "theme-unlock";
+    announcement.setAttribute("role", "status");
+    announcement.hidden = true;
 
     function showSelection(color) {
       const [label] = themes[color];
@@ -70,28 +75,30 @@
       button.innerHTML = icon(color);
       button.hidden = color === "wubrg" && !unlocked;
       button.addEventListener("click", () => {
-        root.dataset.theme = color;
-        showSelection(color);
-        if (!unlocked) {
-          nextColor = color === sequence[nextColor] ? nextColor + 1 : Number(color === sequence[0]);
-          if (nextColor === sequence.length) {
-            unlocked = true;
-            const reward = buttons.get("wubrg");
-            reward.hidden = false;
-            reward.focus();
-            try {
-              localStorage.setItem(unlockKey, "true");
-            } catch {
-              // The unlocked theme remains available on this page.
-            }
-          } else if (nextColor === 0) {
-            closePicker();
-          }
-        } else {
-          closePicker();
+        let selected = color;
+        nextColor = color === sequence[nextColor] ? nextColor + 1 : Number(color === sequence[0]);
+        const completed = nextColor === sequence.length;
+        if (completed) {
+          selected = "wubrg";
+          nextColor = 0;
+          buttons.get("wubrg").hidden = false;
+          announcement.hidden = false;
+          announcement.textContent = unlocked ? "WUBRG active" : "WUBRG unlocked";
+          unlocked = true;
+          clearTimeout(revealTimer);
+          revealTimer = setTimeout(() => {
+            announcement.textContent = "";
+            announcement.hidden = true;
+          }, 4000);
         }
+        root.dataset.theme = selected;
+        showSelection(selected);
+        if (!nextColor) closePicker();
         try {
-          localStorage.setItem(key, color);
+          if (completed) {
+            localStorage.setItem(unlockKey, "true");
+          }
+          localStorage.setItem(key, selected);
         } catch {
           // Keep applying the selection on this page.
         }
@@ -111,5 +118,6 @@
     showSelection(root.dataset.theme);
     picker.append(trigger, options);
     header.insertBefore(picker, header.querySelector(".admin-link"));
+    header.append(announcement);
   });
 })();

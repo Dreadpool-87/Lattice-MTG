@@ -121,7 +121,7 @@ def build_web_app(prefix):
             "</head>",
             f'<link rel="stylesheet" href="{prefix}app/mobile.css?v={version}">\n'
             f'<link rel="manifest" href="{prefix}app/manifest.webmanifest">\n'
-            f'<link rel="apple-touch-icon" href="{prefix}app/icon-192.png?v=dark">\n</head>',
+            f'<link rel="apple-touch-icon" href="{prefix}app/icon-192.png?v=web">\n</head>',
             1,
         )
         def nav_link(label, target):
