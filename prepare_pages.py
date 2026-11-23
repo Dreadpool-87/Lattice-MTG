@@ -1,4 +1,4 @@
-"""Apply the site header and adapt links to the GitHub Pages base path."""
+"""Apply shared site navigation and adapt links to the GitHub Pages base path."""
 import re
 import sys
 from hashlib import sha256
@@ -17,6 +17,7 @@ SEARCH_IMPORT = re.compile(r'"\./search\.mjs(?:\?v=[0-9a-f]+)?"')
 FAVICON = '<link rel="icon" type="image/svg+xml" href="/lattice-spark.svg">'
 BRAND_LINK = re.compile(r'<a [^>]*class="brand"[^>]*>.*?</a>')
 BODY_TAG = re.compile(r"<body(?:\s[^>]*)?>")
+CREDITS_LINK = '<a class="site-credits-link" href="/credits/">Credits &amp; Licensing</a>'
 LEGACY_HOME_LINK = re.compile(
     r'(<main class="wrap static-catalog">\s*)'
     r'<p><a href="(?:\.\./)+">Lattice MTG</a>(?:( · )|</p>\s*)'
@@ -41,6 +42,14 @@ def with_site_header(html, brand, *, show_admin):
         count=1,
     )
     return BODY_TAG.sub(lambda match: match[0] + header, html, count=1)
+
+
+def with_credits_link(html):
+    if 'class="site-credits-link"' in html:
+        return html
+    if "</footer>" in html:
+        return html.replace("</footer>", f"<p>{CREDITS_LINK}</p></footer>", 1)
+    return html.replace("</body>", f'<footer class="wrap">{CREDITS_LINK}</footer>\n</body>', 1)
 
 
 def prepare(base_path):
@@ -76,6 +85,8 @@ def prepare(base_path):
     for page in ROOT.rglob("*.html"):
         original = page.read_text(encoding="utf-8")
         branded = with_site_header(original, brand, show_admin=page == updates)
+        if page != ROOT / "credits" / "index.html":
+            branded = with_credits_link(branded)
         branded = STYLE_LINK.sub(lambda match: f"{match[1]}?v={style_versions[match[2]]}", branded)
         if page == collection / "index.html":
             branded = COLLECTION_PAGE.sub(lambda match: f"{match[1]}?v={collection_page_version}", branded)
