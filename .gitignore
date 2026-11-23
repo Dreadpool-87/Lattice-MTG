@@ -4,3 +4,5 @@ __pycache__/
 /dist/data/rulings/
 /dist/lookup/parts/
 /dist/app/**/index.html
+
+/dist/data/android/
