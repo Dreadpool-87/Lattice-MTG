@@ -107,6 +107,9 @@ assert.ok(homepageBrand?.includes(`src="${logoHref}"`), "Missing Lattice Spark l
 assert.equal(resolveLink(logoHref, "index.html"), "lattice-spark.svg");
 const assetVersion = path => createHash("sha256")
   .update(readFileSync(join(dist, path))).digest("hex").slice(0, 12);
+const explorerScript = `${basePath}/app.mjs?v=${assetVersion("app.mjs")}`;
+assert.ok(index.includes(`src="${explorerScript}"`));
+assert.ok(read("app.mjs").includes(`"./search.mjs?v=${assetVersion("search.mjs")}"`));
 const themeScript = `${basePath}/theme.js?v=${assetVersion("theme.js")}`;
 const styleVersion = assetVersion("styles.css");
 const collectionStyle = `${basePath}/collection/collection.css?v=${assetVersion("collection/collection.css")}`;
@@ -178,7 +181,9 @@ const solRing = json("data/index.json").find(row => row[1] === "Sol Ring");
 assert.ok(Number.isInteger(commanderRanks.get(solRing[0])));
 const sampleSearch = [[0, "Ring", "a"], [1, "Sol Ring", "b"], [2, "Ring of Thune", "c"]];
 assert.deepEqual(search(sampleSearch, "ring").map(row => row[0]), [0, 2, 1]);
-assert.deepEqual(search(sampleSearch, "ring", undefined, new Map([[0, 50], [1, 1]])).map(row => row[0]), [1, 0, 2]);
+assert.deepEqual(search(sampleSearch, "ring", undefined, new Map([[0, 50], [1, 1]])).map(row => row[0]), [0, 1, 2]);
+assert.deepEqual(search(sampleSearch, "ring", undefined, undefined, "name-asc").map(row => row[0]), [0, 2, 1]);
+assert.deepEqual(search(sampleSearch, "ring", undefined, undefined, "name-desc").map(row => row[0]), [0, 1, 2]);
 const tokens = gzipJson("data/tokens.json.gz");
 const treasure = tokens.find(card => card.name === "Treasure");
 assert.ok(treasure?.isToken);

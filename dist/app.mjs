@@ -4,6 +4,7 @@ import {readGzipJson, scryfallUrl} from "./printings.mjs";
 
 const el = id => document.getElementById(id);
 const detail = el("detail");
+const desktop = matchMedia("(min-width: 761px)");
 const escape = value => String(value).replace(/[&<>"']/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[char]);
 const nf = new Intl.NumberFormat("en-US");
 const pageSize = 10;
@@ -12,6 +13,7 @@ const rulingShards = new Map();
 const tokenCards = new Map();
 let catalog, byId = new Map(), matches = [], oracle, commanderRanks, selected, card, face, page = 0;
 let searchRequest = 0, cardRequest = 0;
+let previewing = false;
 
 async function read(url) {
   const response = await fetch(url);
@@ -73,6 +75,31 @@ function loadCatalog() {
 function showWorkspace(visible) {
   el("workspace").hidden = !visible;
   el("start").hidden = visible;
+  el("examples").hidden = visible;
+}
+
+function searchScope() {
+  return el("scope-oracle").checked ? "oracle" : "name";
+}
+
+function setSearchScope(scope) {
+  const byOracleText = scope === "oracle";
+  el("scope-name").checked = !byOracleText;
+  el("scope-oracle").checked = byOracleText;
+  el("query").placeholder = byOracleText ? "Oracle rules text…" : "Card name or Oracle ID…";
+}
+
+function updateCollectionLink() {
+  let hasCollection = false;
+  try {
+    hasCollection = Boolean(sessionStorage.getItem("lattice.collection.v1"));
+  } catch {
+    // The import link still works when session storage is blocked.
+  }
+  el("collection-title").textContent = hasCollection ? "Open collection" : "Import collection";
+  el("collection-description").textContent = hasCollection
+    ? "Continue browsing your imported cards."
+    : "Open a Delver Lens CSV and export your cards with Oracle data.";
 }
 
 function shareUrl() {
@@ -80,10 +107,10 @@ function shareUrl() {
   const query = el("query").value.trim();
   if (query) {
     params.set("q", query);
-    if (el("scope").value === "oracle") params.set("scope", "oracle");
-    if (el("sort").value === "commander") params.set("sort", "commander");
+    if (searchScope() === "oracle") params.set("scope", "oracle");
+    if (el("sort").value !== "relevance") params.set("sort", el("sort").value);
   }
-  if (selected !== undefined) params.set("card", byId.get(selected)[2]);
+  if (selected !== undefined && !previewing) params.set("card", byId.get(selected)[2]);
   history.replaceState({}, "", location.pathname + (params.size ? "?" + params : ""));
 }
 
@@ -100,15 +127,27 @@ function renderResults() {
   el("next").disabled = page+1>=count;
 }
 
-async function find({updateUrl = true} = {}) {
+function renderPage({preview = true} = {}) {
+  const first = matches[page * pageSize];
+  if (preview && desktop.matches && first && (selected === undefined || previewing)) {
+    void openCard(first[0], 0, {updateUrl: false, preview: true});
+  } else {
+    renderResults();
+  }
+}
+
+async function find({updateUrl = true, preview = true} = {}) {
   const run = ++searchRequest;
   const query = el("query").value.trim();
-  const scope = el("scope").value;
-  const popularity = el("sort").value === "commander";
+  const scope = searchScope();
+  const order = el("sort").value;
+  const popularity = order === "commander";
   ++cardRequest;
   selected = undefined;
+  previewing = false;
   detail.hidden = true;
   showWorkspace(Boolean(query));
+  el("result-sort").hidden = !query;
   if (!query) {
     if (updateUrl) shareUrl();
     return;
@@ -117,9 +156,9 @@ async function find({updateUrl = true} = {}) {
   el("paging").hidden = true;
   el("status").textContent = "Searching…";
   try {
-    const rows = await loadCatalog();
+    const rowsPromise = loadCatalog();
     if (scope === "oracle") {
-      oracle ??= read("/data/oracle.json").then(rows => {
+      oracle ??= Promise.all([rowsPromise, read("/data/oracle.json")]).then(([, rows]) => {
         const tokenText = Array.from(tokenCards, ([id, token]) => [id, token.faces.map(face => face.oracleText ?? "").join(" ")]);
         return new Map([...rows, ...tokenText]);
       }).catch(error => {
@@ -127,18 +166,18 @@ async function find({updateUrl = true} = {}) {
         throw error;
       });
     }
-    const text = scope === "oracle" ? await oracle : undefined;
-    let ranks;
     if (popularity) {
       commanderRanks ??= readGzipJson("/data/commander-ranks.json.gz").then(entries => new Map(entries)).catch(() => {
         commanderRanks = undefined;
       });
-      ranks = await commanderRanks;
     }
+    const [rows, text, ranks] = await Promise.all([
+      rowsPromise, scope === "oracle" ? oracle : undefined, popularity ? commanderRanks : undefined,
+    ]);
     if (run !== searchRequest) return;
-    matches = search(rows, query, text, ranks);
+    matches = search(rows, query, text, ranks, order);
     page = 0;
-    renderResults();
+    renderPage({preview});
     if (popularity && !ranks) {
       el("sort").value = "relevance";
       el("status").textContent += " · EDHREC rankings unavailable. Sorted by relevance.";
@@ -216,10 +255,11 @@ function renderCard() {
   });
 }
 
-async function openCard(id, position=0, {move = false, updateUrl = true} = {}) {
+async function openCard(id, position=0, {move = false, updateUrl = true, preview = false} = {}) {
   if (!byId.has(id)) return;
   const run = ++cardRequest;
   selected = id;
+  previewing = preview;
   renderResults();
   if (updateUrl) shareUrl();
   detail.hidden = false;
@@ -252,7 +292,16 @@ async function openCard(id, position=0, {move = false, updateUrl = true} = {}) {
 
 el("search").addEventListener("submit", event=>{event.preventDefault();find();});
 el("scope").addEventListener("change", () => {
+  setSearchScope(searchScope());
   if (el("query").value.trim()) find();
+});
+el("examples").addEventListener("click", event => {
+  const example = event.target.closest("[data-query]");
+  if (!example) return;
+  setSearchScope(example.dataset.scope);
+  el("query").value = example.dataset.query;
+  void find();
+  el("results-heading").focus({preventScroll: true});
 });
 el("sort").addEventListener("change", () => {
   if (el("query").value.trim()) find();
@@ -261,8 +310,8 @@ el("results").addEventListener("click", event=>{
   const button = event.target.closest("[data-card]");
   if (button) openCard(Number(button.dataset.card),0,{move: true});
 });
-el("prev").addEventListener("click",()=>{page--;renderResults();});
-el("next").addEventListener("click",()=>{page++;renderResults();});
+el("prev").addEventListener("click",()=>{page--;renderPage();});
+el("next").addEventListener("click",()=>{page++;renderPage();});
 detail.addEventListener("click",async event=>{
   const button = event.target.closest("button");
   if (!button) return;
@@ -301,10 +350,14 @@ detail.addEventListener("click",async event=>{
 const params = new URLSearchParams(location.search);
 const initialQuery = params.get("q")?.trim();
 const initialCard = params.get("card");
+const initialSort = params.get("sort");
 el("query").value = initialQuery ?? "";
-el("scope").value = params.get("scope") === "oracle" ? "oracle" : "name";
-el("sort").value = params.get("sort") === "commander" ? "commander" : "relevance";
-const initialSearch = initialQuery ? find({updateUrl: false}) : undefined;
+setSearchScope(params.get("scope"));
+el("sort").value = [...el("sort").options].some(option => option.value === initialSort) ? initialSort : "relevance";
+updateCollectionLink();
+window.addEventListener("pageshow", updateCollectionLink);
+el("examples").hidden = Boolean(initialQuery || initialCard);
+const initialSearch = initialQuery ? find({updateUrl: false, preview: !initialCard}) : undefined;
 const initialRequest = searchRequest;
 await initialSearch;
 if (initialCard && initialRequest === searchRequest) {
@@ -317,7 +370,9 @@ if (initialCard && initialRequest === searchRequest) {
       if (entry) {
         if (!initialQuery) matches = [entry];
         await openCard(entry[0], 0, {updateUrl: false});
-      } else if (!initialQuery) {
+      } else if (initialQuery) {
+        renderPage();
+      } else {
         el("status").textContent = "This Oracle ID was not found.";
       }
     }
