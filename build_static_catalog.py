@@ -3,6 +3,7 @@ import json
 import re
 import unicodedata
 from collections import defaultdict
+from datetime import date
 from html import escape
 from pathlib import Path
 
@@ -124,6 +125,7 @@ def build_home(root, meta):
     fields = {
         **{name: f"{meta[name]:,}" for name in ("cards", "faces", "sets")},
         "snapshot": escape(meta["snapshot"]),
+        "archiveDate": date.fromisoformat(meta["snapshot"]).strftime("%d %b %Y"),
     }
     template = (root.parent/"index.template.html").read_text(encoding="utf-8")
     output = re.sub(r"\{\{(\w+)\}\}", lambda match: fields[match[1]], template)

@@ -11,12 +11,18 @@
 }
 
 #app-install {
-  margin-top: 1rem;
+  margin-top: .15rem;
+}
+
+#app-install button,
+#app-install summary {
+  min-height: 44px;
 }
 
 #app-install summary {
   width: fit-content;
-  padding-block: .6rem;
+  display: flex;
+  align-items: center;
   color: var(--accent);
   cursor: pointer;
 }
@@ -109,6 +115,12 @@
   border-color: var(--line);
   color: var(--accent);
   background: var(--surface);
+}
+
+:root[data-theme="wubrg"] .app-nav a[aria-current="page"] {
+  border-color: transparent;
+  background: linear-gradient(var(--surface), var(--surface)) padding-box,
+    var(--brand-paint) border-box;
 }
 
 @media (max-width: 560px) {
