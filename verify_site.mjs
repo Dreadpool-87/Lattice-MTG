@@ -75,6 +75,26 @@ for (const route of ["cards/", "collection/", "lookup/", "updates/"]) {
   resolveLink(href, "index.html");
 }
 assert.ok(!index.includes(`href="${basePath}/sets/"`), "Browse by set belongs in the card catalog");
+assert.equal(resolveLink(`${basePath}/app/`, "index.html"), "app/index.html");
+assert.ok(index.includes(`href="${basePath}/app/"`), "Missing web app link");
+for (const [route, screen, sharedAsset] of [
+  ["app/", "search", "/app.mjs"],
+  ["app/sets/", "sets", "/sets/index.json"],
+  ["app/collection/", "collection", "/collection/page.mjs"],
+]) {
+  const file = `${route}index.html`;
+  const html = read(file);
+  const nav = html.match(/<nav class="app-nav"[^>]*>(.*?)<\/nav>/s)?.[1];
+  assert.ok(nav, `Missing web app navigation on ${file}`);
+  assert.equal([...nav.matchAll(/aria-current="page"/g)].length, 1);
+  assert.ok(nav.includes(`href="${basePath}/${route}" aria-current="page"`));
+  assert.ok(html.includes(`data-app-screen="${screen}"`));
+  assert.ok(html.includes(`${basePath}${sharedAsset}`));
+  assert.ok(html.includes(`${basePath}/app/mobile.css?v=`));
+  for (const [, href] of nav.matchAll(/href="([^"]+)"/g)) resolveLink(href, file);
+}
+assert.ok(read("app/index.html").includes(`action="${basePath}/app/"`));
+assert.ok(read("app/sets/index.html").includes(`href="${basePath}/sets/m19/"`));
 const catalog = read("cards/index.html");
 const setLink = catalog.match(/<a href="([^"]+)" class="start-option catalog-set-link">/);
 assert.ok(setLink, "Missing Browse by set tile in the card catalog");

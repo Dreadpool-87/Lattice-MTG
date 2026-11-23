@@ -3,3 +3,4 @@ __pycache__/
 /dist/sets/
 /dist/data/rulings/
 /dist/lookup/parts/
+/dist/app/**/index.html

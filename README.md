@@ -15,6 +15,12 @@ Choose a format and select **Download**. The download uses the whole imported co
 - **TSV** is a compact index of confirmed, playable cards with one row per Oracle identity. **TSV with Oracle text** adds mana costs and rules text for all parts of each card on the same row. In those two columns, backslashes, tabs, and line breaks use the escapes `\\\\`, `\\t`, `\\n`, and `\\r`.
 - **JSON, JSON Lines, YAML, SQLite** retain imported rows, printing checks, and card records. YAML uses the same collection structure as JSON. The JSON Lines file is UTF-8 and starts with a `{"type":"collection","data":…}` metadata record, followed by `item` records in import order and `card` records for the linked Oracle identities.
 
+## Mobile web app
+
+Open the [Lattice web app](https://dreadpool-87.github.io/Lattice-MTG/app/) on your phone. The bottom bar switches between Search, Sets, and Collection. The preview shares the site's card search, set index, print verification, and Delver Lens import and export. Set details open in the full catalog.
+
+The Pages build generates the app screens from the corresponding site pages, so both use the same data snapshots and scripts.
+
 ## Set index
 
 [Browse sets](https://dreadpool-87.github.io/Lattice-MTG/sets/) by set code or name. Each set page links to its card entries and JSON file. In the [JSON set index](https://dreadpool-87.github.io/Lattice-MTG/sets/index.json), find the entry by set code and follow its `json` field relative to the index URL.

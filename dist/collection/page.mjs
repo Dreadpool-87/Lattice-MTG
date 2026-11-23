@@ -76,7 +76,9 @@ function renderFaces(card, target, showTitle, searchGatherer) {
   const actions = node("div", undefined, "collection-links");
   const link = node("a", "Open in Card Explorer", "collection-card-link");
   link.setAttribute("aria-label", `Open ${card.name} in Card Explorer`);
-  link.href = "/?card=" + encodeURIComponent(card.oracleId);
+  const appSearch = document.querySelector(".app-nav a");
+  const target = "?card=" + encodeURIComponent(card.oracleId);
+  link.href = appSearch ? new URL(target, appSearch.href).href : "/?card=" + encodeURIComponent(card.oracleId);
   actions.append(link);
   if (searchGatherer) {
     const gatherer = externalLink("Search Gatherer", gathererSearchUrl(card.name));
