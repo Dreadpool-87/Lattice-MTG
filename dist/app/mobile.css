@@ -10,6 +10,23 @@
   display: none;
 }
 
+#app-install {
+  margin-top: 1rem;
+}
+
+#app-install summary {
+  width: fit-content;
+  padding-block: .6rem;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+@media (display-mode: standalone) {
+  #app-install {
+    display: none;
+  }
+}
+
 [data-app-screen] .intro,
 [data-app-screen] .explorer-hero {
   padding-block: clamp(1.5rem, 6vw, 3.25rem) 1.25rem;

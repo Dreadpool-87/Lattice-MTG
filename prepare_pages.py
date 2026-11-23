@@ -62,6 +62,7 @@ def build_web_app(prefix):
     style = ROOT / "app" / "mobile.css"
     version = sha256(style.read_bytes()).hexdigest()[:12]
     sets_version = sha256((ROOT / "app" / "sets.mjs").read_bytes()).hexdigest()[:12]
+    install_version = sha256((ROOT / "app" / "install.mjs").read_bytes()).hexdigest()[:12]
     for screen, (route, source) in APP_SCREENS.items():
         html = (ROOT / source).read_text(encoding="utf-8")
         if screen == "Sets":
@@ -89,6 +90,19 @@ def build_web_app(prefix):
             )
         if screen == "Search":
             html = html.replace('action="/"', f'action="{prefix + route}"', 1)
+            html = html.replace("</section>", '''  <div id="app-install">
+    <button type="button" id="app-install-button" hidden>Install app</button>
+    <details id="app-install-help">
+      <summary>Install app</summary>
+      <p>In your browser menu, choose Install app or Add to Home Screen.</p>
+    </details>
+  </div>
+</section>''', 1)
+            html = html.replace(
+                "</head>",
+                f'<script type="module" src="{prefix}app/install.mjs?v={install_version}"></script>\n</head>',
+                1,
+            )
         if screen == "Collection":
             html = html.replace(
                 "Your collection stays in this tab until you clear it, replace it, or close the tab.",
