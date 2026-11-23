@@ -1,0 +1,86 @@
+[data-app-screen] {
+  padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+}
+
+[data-app-screen] .brandrow {
+  min-height: 3.5rem;
+}
+
+[data-app-screen] .web-app-link {
+  display: none;
+}
+
+[data-app-screen] .intro,
+[data-app-screen] .explorer-hero {
+  padding-block: clamp(1.5rem, 6vw, 3.25rem) 1.25rem;
+}
+
+[data-app-screen="sets"] .static-catalog li {
+  margin-block: .3rem;
+  overflow-wrap: anywhere;
+}
+
+[data-app-screen="sets"] .static-catalog li a {
+  display: inline-block;
+  padding-block: .3rem;
+}
+
+.app-nav {
+  position: fixed;
+  inset: auto 0 0;
+  z-index: 10;
+  display: block;
+  padding: .5rem 1rem calc(.5rem + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--line);
+  background: var(--header-bg);
+}
+
+.app-nav > div {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .35rem;
+  max-width: 32rem;
+  margin-inline: auto;
+}
+
+.app-nav a {
+  display: grid;
+  place-items: center;
+  min-height: 44px;
+  padding: .25rem;
+  border: 1px solid transparent;
+  border-radius: .55rem;
+  color: var(--muted);
+  font-weight: 650;
+  text-align: center;
+  text-decoration: none;
+}
+
+.app-nav a:hover,
+.app-nav a[aria-current="page"] {
+  border-color: var(--line);
+  color: var(--accent);
+  background: var(--surface);
+}
+
+@media (max-width: 560px) {
+  [data-app-screen="search"] #search {
+    display: grid;
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+
+  [data-app-screen="search"] #query {
+    width: 100%;
+    min-height: 48px;
+    padding-inline: .8rem;
+    border: 1px solid var(--search-border);
+    border-radius: .6rem;
+    background: var(--search-bg);
+  }
+
+  [data-app-screen="search"] #search .primary {
+    min-height: 44px;
+  }
+}

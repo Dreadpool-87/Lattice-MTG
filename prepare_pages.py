@@ -3,6 +3,7 @@ import re
 import sys
 from hashlib import sha256
 from pathlib import Path
+from urllib.parse import urljoin
 
 ROOT = Path(__file__).resolve().parent / "dist"
 ATTR_PATH = re.compile(r'((?:href|src)=")/(?!/)')
@@ -26,6 +27,11 @@ ADMIN_LINK = (
     '<a class="admin-link" href="https://lattice-mtg-admin.dreadpool.workers.dev/" '
     'referrerpolicy="no-referrer">Admin</a>'
 )
+APP_SCREENS = {
+    "Search": ("app/", "index.html"),
+    "Sets": ("app/sets/", "sets/index.html"),
+    "Collection": ("app/collection/", "collection/index.html"),
+}
 
 
 def with_site_header(html, brand, *, show_admin):
@@ -50,6 +56,42 @@ def with_credits_link(html):
     if "</footer>" in html:
         return html.replace("</footer>", f"<p>{CREDITS_LINK}</p></footer>", 1)
     return html.replace("</body>", f'<footer class="wrap">{CREDITS_LINK}</footer>\n</body>', 1)
+
+
+def build_web_app(prefix):
+    style = ROOT / "app" / "mobile.css"
+    version = sha256(style.read_bytes()).hexdigest()[:12]
+    for screen, (route, source) in APP_SCREENS.items():
+        html = (ROOT / source).read_text(encoding="utf-8")
+        if screen == "Sets":
+            # Keep links to the existing set pages while anchors scroll within the app.
+            html = re.sub(
+                r'href="(?![/#]|[\w+.-]+:)([^"]+)"',
+                lambda match: f'href="{urljoin(prefix + source, match[1])}"',
+                html,
+            )
+        if screen == "Search":
+            html = html.replace('action="/"', f'action="{prefix + route}"', 1)
+        html = BODY_TAG.sub(
+            lambda match: match[0][:-1] + f' data-app-screen="{screen.lower()}">',
+            html,
+            count=1,
+        )
+        html = html.replace(
+            "</head>",
+            f'<link rel="stylesheet" href="{prefix}app/mobile.css?v={version}">\n</head>',
+            1,
+        )
+        def nav_link(label, target):
+            active = ' aria-current="page"' if screen == label else ""
+            return f'<a href="{prefix + target}"{active}>{label}</a>'
+
+        links = "".join(nav_link(label, target) for label, (target, _) in APP_SCREENS.items())
+        nav = f'<nav class="app-nav" aria-label="Lattice web app"><div>{links}</div></nav>'
+        html = html.replace("</body>", f'{nav}\n</body>', 1)
+        destination = ROOT / route / "index.html"
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(html, encoding="utf-8")
 
 
 def prepare(base_path):
@@ -83,6 +125,8 @@ def prepare(base_path):
     updates = ROOT / "updates" / "index.html"
 
     for page in ROOT.rglob("*.html"):
+        if page.is_relative_to(ROOT / "app"):
+            continue
         original = page.read_text(encoding="utf-8")
         branded = with_site_header(original, brand, show_admin=page == updates)
         if page != ROOT / "credits" / "index.html":
@@ -107,6 +151,7 @@ def prepare(base_path):
             html = CATALOG_LINK.sub(r"\1.html", html)
         if html != original:
             page.write_text(html, encoding="utf-8")
+    build_web_app(prefix)
 
 
 if __name__ == "__main__":
