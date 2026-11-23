@@ -135,7 +135,7 @@ def render_history(history):
         'include finishes and variants. Set changes cover names and release dates. Rulings are '
         'compared by card, date and text, so a rewritten ruling counts as one removal and one addition.</p>'
     )
-    return page("Data updates", "../styles.css", '<p><a href="../">Lattice MTG</a></p>', content)
+    return page("Archive log", "../styles.css", '<p><a href="../">Lattice MTG</a></p>', content)
 
 
 def main():

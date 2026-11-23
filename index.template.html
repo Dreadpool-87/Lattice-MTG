@@ -14,7 +14,10 @@
   <header class="sitebar">
     <div class="wrap brandrow">
       <a href="/" class="brand" aria-label="Lattice MTG home"><img src="/lattice-spark.svg" width="24" height="24" alt="">LATTICE <span>MTG</span></a>
-      <span>Snapshot · {{snapshot}} · <a href="/updates/">Data updates</a></span>
+      <div class="archive-status">
+        <span>Archive · <time datetime="{{snapshot}}">{{archiveDate}}</time> · <a href="/updates/">Archive log</a></span>
+        <!-- app-install -->
+      </div>
     </div>
   </header>
   <main class="wrap explorer-main">

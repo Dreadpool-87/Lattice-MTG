@@ -5,19 +5,27 @@
     black: ["Black", "#dac5dd", "M8 5h8l3 4v6l-3 2v2H8v-2l-3-2V9zM8 11h2m4 0h2m-6 8v-3m4 3v-3"],
     red: ["Red", "#ffba9e", "m12 4 5 7 1-2 1 6-3 4H9l-4-4 3-5 1 3zM10 19l-1-3 3-3 2 3-1 3"],
     green: ["Green", "#b1e1b6", "M12 20v-3m-3 3h6M12 4l4 5h-2l4 4h-3l3 4H6l3-4H6l4-4H8z"],
+    wubrg: ["WUBRG"],
   };
+  const sequence = ["white", "blue", "black", "red", "green"];
   const key = "lattice-color-theme";
+  const unlockKey = "lattice-wubrg-unlocked";
   const root = document.documentElement;
   let savedTheme;
+  let unlocked = false;
 
   try {
     savedTheme = localStorage.getItem(key);
+    unlocked = localStorage.getItem(unlockKey) === "true";
   } catch {
     // The default theme works without storage.
   }
-  root.dataset.theme = Object.hasOwn(themes, savedTheme) ? savedTheme : "green";
+  root.dataset.theme = Object.hasOwn(themes, savedTheme) && (savedTheme !== "wubrg" || unlocked)
+    ? savedTheme
+    : "green";
 
   function icon(color) {
+    if (color === "wubrg") return '<span class="wubrg-swatch" aria-hidden="true"></span>';
     const [, fill, lines] = themes[color];
     return `<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24">
       <rect x="1" y="1" width="22" height="22" rx="7" fill="${fill}"/>
@@ -37,6 +45,7 @@
     options.setAttribute("role", "group");
     options.setAttribute("aria-label", "Color theme");
     const buttons = new Map();
+    let nextColor = 0;
 
     function showSelection(color) {
       const [label] = themes[color];
@@ -59,10 +68,28 @@
       button.title = label;
       button.setAttribute("aria-label", label);
       button.innerHTML = icon(color);
+      button.hidden = color === "wubrg" && !unlocked;
       button.addEventListener("click", () => {
         root.dataset.theme = color;
         showSelection(color);
-        closePicker();
+        if (!unlocked) {
+          nextColor = color === sequence[nextColor] ? nextColor + 1 : Number(color === sequence[0]);
+          if (nextColor === sequence.length) {
+            unlocked = true;
+            const reward = buttons.get("wubrg");
+            reward.hidden = false;
+            reward.focus();
+            try {
+              localStorage.setItem(unlockKey, "true");
+            } catch {
+              // The unlocked theme remains available on this page.
+            }
+          } else if (nextColor === 0) {
+            closePicker();
+          }
+        } else {
+          closePicker();
+        }
         try {
           localStorage.setItem(key, color);
         } catch {

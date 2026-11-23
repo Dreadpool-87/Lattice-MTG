@@ -22,6 +22,17 @@
   --bg:#1b1212;--panel:#281a19;--surface:#382323;--line:#583b36;
   --text:#fff0eb;--muted:#d1b5ac;--accent:#ffae9a;--accent-ink:#391b14
 }
+.wubrg-swatch,
+:root[data-theme="wubrg"] {
+  --brand-paint: linear-gradient(110deg,#f4dcab 0 20%,#a9d9fa 20% 40%,#a78eb8 40% 60%,#ff9c8d 60% 80%,#b1e1b6 80% 100%);
+}
+:root[data-theme="wubrg"] {
+  --bg:#17151e;--panel:#221e2b;--surface:#332c40;--line:#605574;
+  --text:#f8f3fc;--muted:#c9bed4;--accent:#f4dcab;--accent-ink:#28202c
+}
+.wubrg-swatch {
+  width:24px;height:24px;border-radius:7px;background:var(--brand-paint)
+}
 :root[data-theme]:not([data-theme="green"]) {
   --header-bg:var(--panel);--selected-ink:var(--accent-ink);
   --selected-bg:var(--surface);--detail-glow:var(--surface);--detail-bg:var(--panel);
@@ -176,7 +187,7 @@ summary{cursor:pointer;color:var(--muted)}details .tags{margin-top:.55rem}
 @supports (mask: url("./lattice-spark.svg")) {
   :root[data-theme]:not([data-theme="green"]) .brand img{display:none}
   :root[data-theme]:not([data-theme="green"]) .brand::before{
-    content:"";width:24px;height:24px;flex:none;background:var(--accent);
+    content:"";width:24px;height:24px;flex:none;background:var(--brand-paint,var(--accent));
     mask:url("./lattice-spark.svg") center/contain no-repeat
   }
 }

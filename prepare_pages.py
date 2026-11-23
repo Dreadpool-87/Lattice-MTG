@@ -90,14 +90,13 @@ def build_web_app(prefix):
             )
         if screen == "Search":
             html = html.replace('action="/"', f'action="{prefix + route}"', 1)
-            html = html.replace("</section>", '''  <div id="app-install">
+            html = html.replace("<!-- app-install -->", '''<div id="app-install">
     <button type="button" id="app-install-button" hidden>Install app</button>
     <details id="app-install-help">
       <summary>Install app</summary>
       <p>In your browser menu, choose Install app or Add to Home Screen.</p>
     </details>
-  </div>
-</section>''', 1)
+  </div>''', 1)
             html = html.replace(
                 "</head>",
                 f'<script type="module" src="{prefix}app/install.mjs?v={install_version}"></script>\n</head>',
@@ -122,7 +121,7 @@ def build_web_app(prefix):
             "</head>",
             f'<link rel="stylesheet" href="{prefix}app/mobile.css?v={version}">\n'
             f'<link rel="manifest" href="{prefix}app/manifest.webmanifest">\n'
-            f'<link rel="apple-touch-icon" href="{prefix}app/icon-192.png">\n</head>',
+            f'<link rel="apple-touch-icon" href="{prefix}app/icon-192.png?v=dark">\n</head>',
             1,
         )
         def nav_link(label, target):
