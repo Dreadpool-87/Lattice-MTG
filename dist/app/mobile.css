@@ -25,6 +25,37 @@
   padding-block: .3rem;
 }
 
+.app-set-search {
+  display: grid;
+  gap: .4rem;
+  max-width: 28rem;
+  margin-block: 1rem;
+}
+
+.app-set-search input {
+  width: 100%;
+  padding-inline: .8rem;
+  border: 1px solid var(--search-border);
+  border-radius: .6rem;
+  background: var(--search-bg);
+}
+
+#app-set-count {
+  color: var(--muted);
+}
+
+.app-save-collection {
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+  min-height: 44px;
+}
+
+.app-save-collection input {
+  flex: none;
+  min-height: auto;
+}
+
 .app-nav {
   position: fixed;
   inset: auto 0 0;
