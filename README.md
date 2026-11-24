@@ -66,3 +66,7 @@ The pre-publication check verifies representative links, card lookups, snapshot 
 Lattice MTG is an unofficial Magic: The Gathering fan project. Wizards of the Coast has not approved, endorsed, or sponsored it. Portions of the materials used belong to Wizards of the Coast. © Wizards of the Coast LLC. See the [Fan Content Policy](https://company.wizards.com/en/legal/fancontentpolicy).
 
 The Lattice MTG source code currently has no project-wide license. Third-party code and data retain their respective notices and terms.
+
+### Android offline catalog
+
+The Pages build publishes a small manifest at `data/android/manifest.json` and checksummed, gzip-compressed card packs. The Android app can download the full catalog (a representative printing per Oracle card) or a set (a representative language per collector-number and Oracle card combination). Packs are generated from the same committed card and printing snapshots used by the website.
